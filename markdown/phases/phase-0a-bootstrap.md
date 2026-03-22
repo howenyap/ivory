@@ -103,9 +103,16 @@ Expected result:
 - prints `True`
 
 ```bash
-uv run python -c "import ivory.config as c; \
-try: c.load_config(); raise SystemExit('expected load_config() to fail before configs/experiment.toml exists'); \
-except Exception as e: assert 'experiment.toml' in str(e) or isinstance(e, FileNotFoundError); print(type(e).__name__)"
+uv run python - <<'PY'
+import ivory.config as c
+
+try:
+    c.load_config()
+    raise SystemExit("expected load_config() to fail before configs/experiment.toml exists")
+except Exception as e:
+    assert "experiment.toml" in str(e) or isinstance(e, FileNotFoundError)
+    print(type(e).__name__)
+PY
 ```
 
 Expected result:

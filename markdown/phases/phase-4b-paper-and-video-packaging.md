@@ -26,7 +26,7 @@ Translate the completed experiment outputs into submission-ready paper and video
    - conclusion points
    - references plan
 2. Map each required paper section to specific artifacts so no claim is left unsupported.
-3. Create a figure and table inventory for the paper with captions or caption placeholders.
+3. Create a figure and table inventory for the paper with real captions, not caption placeholders.
 4. Create a video flow that follows the paper structure and identifies:
    - slide sequence
    - demo segments if any
