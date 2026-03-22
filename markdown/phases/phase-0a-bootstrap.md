@@ -1,5 +1,9 @@
 # Phase 0a: Bootstrap
 
+## Codex Prompt Contract
+
+Implement only the bootstrap scaffolding for the `ivory` project. Do not build PostgreSQL integration, dataset logic, feature extraction, or ML code in this phase. Before stopping, run every verification command in this file and ensure the CLI and imports work through `uv`.
+
 ## Objective
 
 Initialize the repository as a runnable Python project managed by `uv`, pinned to Python `3.14`, with a stable package layout, CLI skeleton, and config skeleton. The goal of this phase is not to implement any project logic. The goal is to create the minimum project structure that every later phase can depend on without renaming files or rethinking the package boundary.
@@ -29,7 +33,10 @@ Initialize the repository as a runnable Python project managed by `uv`, pinned t
    - `train`
    - `evaluate`
    - `report-assets`
-5. Add a config skeleton that can load `configs/experiment.toml` once it exists.
+5. Add a config skeleton with a stable minimal API:
+   - `ivory.config.load_config(path: str | None = None)`
+   - default path `configs/experiment.toml`
+   - a predictable error if the file does not exist yet
 6. Create the stable top-level directory layout:
    - `artifacts/`
    - `configs/`
@@ -89,6 +96,23 @@ Expected result:
 - process exits successfully with no import errors
 
 ```bash
+uv run python -c "import ivory.config as c; print(hasattr(c, 'load_config'))"
+```
+
+Expected result:
+- prints `True`
+
+```bash
+uv run python -c "import ivory.config as c; \
+try: c.load_config(); raise SystemExit('expected load_config() to fail before configs/experiment.toml exists'); \
+except Exception as e: assert 'experiment.toml' in str(e) or isinstance(e, FileNotFoundError); print(type(e).__name__)"
+```
+
+Expected result:
+- `load_config()` fails in a predictable way before the config file exists
+- the failure mentions `experiment.toml` or uses a file-not-found style error
+
+```bash
 find src/ivory -maxdepth 2 -type f | sort
 ```
 
@@ -101,6 +125,7 @@ Expected result:
 - Python `3.14` is the active project runtime.
 - The `ivory` package imports successfully.
 - The CLI help command works through `uv run`.
+- `ivory.config.load_config` exists with the default-path contract.
 - The repo layout matches the contract in this file.
 - No phase-specific business logic has leaked into the bootstrap layer.
 
@@ -111,7 +136,3 @@ Expected result:
 - Adding later-phase dependencies before they are needed.
 - Hardcoding paths in the CLI instead of centralizing config loading.
 - Omitting `uv.lock`, which breaks reproducibility for later phases.
-
-## Codex Prompt Contract
-
-Implement only the bootstrap scaffolding for the `ivory` project. Do not build PostgreSQL integration, dataset logic, feature extraction, or ML code in this phase. Before stopping, run every verification command in this file and ensure the CLI and imports work through `uv`.

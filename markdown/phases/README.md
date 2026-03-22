@@ -20,16 +20,16 @@ These files turn the project plan into operational contracts for repeated Codex 
 
 | Phase | Prerequisites | Main Outputs | Used By |
 | --- | --- | --- | --- |
-| `0a` | None | `pyproject.toml`, `uv.lock`, `src/ivory/`, CLI skeleton, config skeleton | `0b` onward |
-| `0b` | `0a` | `configs/experiment.toml`, schema docs, artifact contract docs | `1a`, `1b`, `2c`, `3a`, `4a` |
+| `0a` | None | `pyproject.toml`, `uv.lock`, `src/ivory/`, CLI skeleton, config loader skeleton | `0b` onward |
+| `0b` | `0a` | `configs/experiment.toml`, schema docs, `schemas/artifact_contract.json`, metric schemas | `1a`, `1b`, `2a`, `2b`, `2c`, `3a`, `3b`, `4a` |
 | `1a` | `0a`, `0b` | Dockerized PostgreSQL, loaded TPC-H datasets, DB health checks | `1b` |
-| `1b` | `0a`, `0b`, `1a` | Raw runs dataset, plan JSONL, manifests, failure logs | `2a`, `2b`, `2c`, `3b` |
-| `2a` | `0a`, `0b`, `1b` | SQL structural feature extractor and SQL feature dataset | `2c`, `3b` |
-| `2b` | `0a`, `0b`, `1b` | Plan feature extractor and plan feature dataset | `2c`, `3b` |
+| `1b` | `0a`, `0b`, `1a` | Raw runs dataset with SQL text, plan JSONL, manifests, failure logs | `2a`, `2b`, `2c`, `3b` |
+| `2a` | `0a`, `0b`, `1b` | SQL structural feature extractor, SQL feature dataset, SQL feature exclusions | `2c`, `3b` |
+| `2b` | `0a`, `0b`, `1b` | Plan feature extractor, plan feature dataset, plan feature exclusions | `2c`, `3b` |
 | `2c` | `0b`, `1b`, `2a`, `2b` | `features.parquet`, modeling-ready schema contract | `3a`, `3b`, `4a` |
-| `3a` | `0b`, `2c` | Baseline models, metrics, split outputs | `3b`, `4a`, `4b` |
-| `3b` | `0b`, `2c`, `3a` | Ablation tables, grouped evaluation, error analysis plots | `4a`, `4b` |
-| `4a` | `0b`, `2c`, `3a`, `3b` | Reproduction command, final figures, final tables | `4b` |
+| `3a` | `0b`, `2c` | Baseline models, metrics, training manifest | `3b`, `4a`, `4b` |
+| `3b` | `0b`, `2c`, `3a` | Ablation tables, grouped evaluation, split manifest, error analysis plots | `4a`, `4b` |
+| `4a` | `0b`, `2c`, `3a`, `3b` | Reproduction commands, full rerun manifest, final figures, final tables | `4b` |
 | `4b` | `4a` | Paper outline, section-to-artifact mapping, video flow, submission checklist | Final submission |
 
 ## Canonical Project Conventions
@@ -43,6 +43,8 @@ These files turn the project plan into operational contracts for repeated Codex 
 - Canonical CLI entrypoint: `uv run python -m ivory.cli <command>`
 - Canonical config path: `configs/experiment.toml`
 - Canonical artifact root: `artifacts/`
+- Canonical modeling grain: one row per successful observation
+- Canonical join keys are frozen in Phase `0b`; later phases must implement them, not redefine them
 
 ## Expected Artifact Layout
 
@@ -57,25 +59,33 @@ artifacts/
     exclusions.parquet
   features/
     sql_features.parquet
+    sql_feature_exclusions.parquet
     plan_features.parquet
+    plan_feature_exclusions.parquet
     features.parquet
   models/
     baseline_metrics.json
     baseline_predictions.parquet
+    training_manifest.json
   evaluation/
     grouped_metrics.json
+    grouped_split_manifest.json
     ablations.json
     error_analysis.parquet
   report/
     figures/
     tables/
+    full_rerun_manifest.json
 configs/
   experiment.toml
 schemas/
+  artifact_contract.json
   raw_runs.schema.json
   sql_features.schema.json
   plan_features.schema.json
   features.schema.json
+  baseline_metrics.schema.json
+  grouped_metrics.schema.json
 src/
   ivory/
 ```
@@ -96,3 +106,4 @@ src/
 - If an interface changes, update every downstream guide that depends on it in the same Codex run.
 - Keep file names and CLI commands stable once a later phase depends on them.
 - Do not loosen verification criteria just to make a failing phase appear complete.
+- If a phase guide says a decision is frozen in `0b`, later phase guides must treat it as an input, not a choice.

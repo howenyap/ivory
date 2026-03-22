@@ -1,5 +1,9 @@
 # Phase 4b: Paper and Video Packaging
 
+## Codex Prompt Contract
+
+Implement the paper and video packaging documents only. Do not change experimental results in this phase. Before stopping, prove that every planned section or video segment maps to a real artifact and that the submission checklist reflects the actual course requirements.
+
 ## Objective
 
 Translate the completed experiment outputs into submission-ready paper and video materials. This phase should not invent new results. It should map existing artifacts into the report structure, the video flow, and the final submission checklist so the project can be presented coherently and defensibly.
@@ -16,9 +20,11 @@ Translate the completed experiment outputs into submission-ready paper and video
    - title and abstract intent
    - introduction claims
    - background topics
+   - related work plan
    - methodology details
    - performance evaluation figures and tables
    - conclusion points
+   - references plan
 2. Map each required paper section to specific artifacts so no claim is left unsupported.
 3. Create a figure and table inventory for the paper with captions or caption placeholders.
 4. Create a video flow that follows the paper structure and identifies:
@@ -30,6 +36,9 @@ Translate the completed experiment outputs into submission-ready paper and video
    - paper completeness
    - video completeness
    - file formats
+    - paper constraints: PDF, Overleaf, Springer LNCS, max 15 pages
+    - video constraints: MP4 or MOV, max 10 minutes, max 200MB
+   - submission targets: EasyChair for the paper, Canvas for the video
    - final artifact locations
    - deadline readiness
 6. Keep all deliverables grounded in already-generated project outputs.
@@ -47,11 +56,11 @@ Translate the completed experiment outputs into submission-ready paper and video
 Run these checks from the repository root:
 
 ```bash
-rg -n "^## " markdown reports
+rg -n "Title|Abstract|Introduction|Background|Related Work|Methodology|Performance Evaluation|Conclusion|References" markdown reports
 ```
 
 Expected result:
-- section structure exists for the outline or report scaffolding
+- every required paper section from the course brief is present in the outline or report scaffolding
 
 ```bash
 find artifacts/report/figures -maxdepth 1 -type f | wc -l
@@ -62,11 +71,18 @@ Expected result:
 - the inventory can point to real generated assets
 
 ```bash
-rg -n "TBD|TODO|placeholder|insert later" markdown reports
+uv run python -c "from pathlib import Path; import re; pattern=re.compile(r'TBD|TODO|placeholder|insert later'); paths=[p for root in ['markdown','reports'] for p in ([Path(root)] if Path(root).is_file() else Path(root).rglob('*')) if p.is_file()]; matches=[]; [matches.append(f'{p}:{i}:{line}') for p in paths for i, line in enumerate(p.read_text().splitlines(), 1) if pattern.search(line)]; assert not matches, '\\n'.join(matches)"
 ```
 
 Expected result:
-- no unresolved placeholders remain in final packaging docs unless explicitly accepted
+- no unresolved placeholders remain in final packaging docs
+
+```bash
+rg -n "PDF|Overleaf|Springer|15 pages|MP4|MOV|10 minutes|200MB|EasyChair|Canvas" markdown reports
+```
+
+Expected result:
+- the submission checklist captures the paper, video, and submission-target constraints from the course brief
 
 ## Definition of Done
 
@@ -83,7 +99,3 @@ Expected result:
 - Forgetting to map figures and tables to specific sections.
 - Leaving placeholder text in the final packaging docs.
 - Treating this phase as a fresh research phase instead of a packaging phase.
-
-## Codex Prompt Contract
-
-Implement the paper and video packaging documents only. Do not change experimental results in this phase. Before stopping, prove that every planned section or video segment maps to a real artifact and that the submission checklist reflects the actual course requirements.

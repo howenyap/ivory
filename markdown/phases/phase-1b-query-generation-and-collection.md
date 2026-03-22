@@ -1,5 +1,9 @@
 # Phase 1b: Query Generation and Collection
 
+## Codex Prompt Contract
+
+Implement the query-generation and raw-collection pipeline only. This phase includes retries, timeout handling, exclusion logging, and manifests because those are part of collection correctness. Do not implement feature extraction or ML training. Before stopping, run the collector on a small slice and prove that success, timeout, retry, exclusion, and plan-to-raw identifier coverage are all recorded correctly.
+
 ## Objective
 
 Generate parameterized TPC-H query instances, execute them against PostgreSQL with `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, and persist the raw collection artifacts. This phase also owns collection robustness: timeout policy, retry policy, exclusion logging, and run manifests must be implemented here because they define whether the dataset is reproducible and auditable.
@@ -19,37 +23,45 @@ Generate parameterized TPC-H query instances, execute them against PostgreSQL wi
 ## Implementation Steps
 
 1. Implement deterministic parameter generation for all targeted TPC-H templates.
-2. Assign stable identifiers for:
-   - query template
-   - parameter set
-   - scale factor
-   - run attempt
-   - successful observation
-3. Implement the collection command that:
+2. Implement the exact identifier contract frozen in Phase `0b`. At minimum, every successful collected run must carry:
+   - `template_id`
+   - `parameter_set_id`
+   - `query_instance_id`
+   - `scale_factor`
+   - `run_attempt_id`
+   - `observation_id`
+3. Ensure `plans.jsonl` carries the same `observation_id` as `raw_runs.parquet` for every successful collected observation.
+4. Implement the collection command that:
    - selects scale factors and query templates
    - renders SQL for each parameter set
    - executes `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`
-   - captures planner cost, planning time, execution time, row counts, and plan JSON
-4. Persist the required raw artifacts:
+   - captures raw SQL text, planner cost, planning time, execution time, row counts, and plan JSON
+5. Persist the required raw artifacts:
    - `artifacts/raw/raw_runs.parquet`
    - `artifacts/raw/plans.jsonl`
    - `artifacts/raw/collection_manifest.json`
    - `artifacts/raw/exclusions.parquet`
-5. Implement timeout handling so timed-out queries are logged, not silently dropped.
-6. Implement retry handling with a clear maximum retry count and explicit attempt tracking.
-7. Distinguish between:
+6. Implement timeout handling so timed-out queries are logged, not silently dropped.
+7. Implement retry handling with a clear maximum retry count and explicit attempt tracking.
+8. Distinguish between:
    - successful runs
    - failed runs
    - timed-out runs
    - excluded runs
-8. Ensure the manifest records:
+9. Ensure `raw_runs.parquet` and `exclusions.parquet` expose explicit status fields such as:
+   - `status`
+   - `failure_reason`
+   - `attempt_number`
+   - `is_excluded`
+10. Ensure the manifest records:
    - config hash or config path
    - collection timestamp
    - scale factors included
    - templates included
    - code revision if available
    - row counts for produced artifacts
-9. Keep raw collection lossless enough that downstream feature extraction does not need to requery PostgreSQL just to recover missing metadata.
+    - identifier coverage for successful rows and plan records
+11. Keep raw collection lossless enough that downstream feature extraction does not need to requery PostgreSQL just to recover missing metadata.
 
 ## Deliverables
 
@@ -60,6 +72,8 @@ Generate parameterized TPC-H query instances, execute them against PostgreSQL wi
 - `artifacts/raw/collection_manifest.json`
 - `artifacts/raw/exclusions.parquet`
 - documented timeout and retry behavior
+- explicit status and identifier fields matching the Phase `0b` contract
+- raw SQL text persisted in `raw_runs.parquet` for downstream SQL featurization
 
 ## Verification
 
@@ -74,11 +88,12 @@ Expected result:
 - raw artifacts are created in `artifacts/raw/`
 
 ```bash
-uv run python -c "import polars as pl; df = pl.read_parquet('artifacts/raw/raw_runs.parquet'); print(df.columns); print(df.height)"
+uv run python -c "import polars as pl; df = pl.read_parquet('artifacts/raw/raw_runs.parquet'); assert 'sql_text' in df.columns; assert df.filter(pl.col('status')=='success').select(pl.col('sql_text').is_not_null().all()).item(); print(df.columns, df.height)"
 ```
 
 Expected result:
 - required schema columns are present
+- successful rows retain raw SQL text
 - row count is greater than zero
 
 ```bash
@@ -89,7 +104,7 @@ Expected result:
 - at least one JSONL plan record parses successfully
 
 ```bash
-uv run python -c "import polars as pl; print(pl.read_parquet('artifacts/raw/exclusions.parquet').columns)"
+uv run python -c "import polars as pl; df=pl.read_parquet('artifacts/raw/exclusions.parquet'); required={'status','failure_reason','attempt_number','is_excluded'}; assert required.issubset(set(df.columns)); print('ok')"
 ```
 
 Expected result:
@@ -97,13 +112,27 @@ Expected result:
 - the schema supports failure and timeout reasons
 
 ```bash
-uv run python -m ivory.cli collect --limit-templates 1 --limit-params 1 --limit-scales 1 --force-timeout-test
+uv run python -m ivory.cli collect --limit-templates 1 --limit-params 1 --limit-scales 1 --timeout-ms 1
 ```
 
 Expected result:
 - the timeout path is exercised
 - the run is logged as timed out or excluded according to policy
 - the collector does not silently hang
+
+```bash
+uv run python -c "import polars as pl, json; from pathlib import Path; raw=pl.read_parquet('artifacts/raw/raw_runs.parquet').filter(pl.col('status')=='success'); raw_ids=raw['observation_id'].to_list(); plan_ids=[json.loads(line)['observation_id'] for line in Path('artifacts/raw/plans.jsonl').read_text().splitlines()]; assert len(raw_ids)==len(set(raw_ids)); assert len(plan_ids)==len(set(plan_ids)); assert set(raw_ids)==set(plan_ids); print('ok')"
+```
+
+Expected result:
+- every successful raw row has exactly one matching plan record
+
+```bash
+uv run python -c "import json; from pathlib import Path; m=json.loads(Path('artifacts/raw/collection_manifest.json').read_text()); assert 'identifier_coverage' in m; assert 'artifacts' in m; print('ok')"
+```
+
+Expected result:
+- the manifest records identifier coverage and produced artifact metadata
 
 ## Definition of Done
 
@@ -112,15 +141,13 @@ Expected result:
 - Successful runs, failures, retries, and timeouts are all auditable.
 - Plan JSON is persisted separately from the tabular raw dataset.
 - The collection manifest makes it possible to trace how the dataset was produced.
+- Successful observations and plan records join exactly on the frozen observation-level key.
 
 ## Common Failure Modes
 
 - Using unstable random sampling with no seed or manifest trace.
 - Mixing logical run ids and retry attempt ids.
 - Writing only successful runs and losing evidence of failures.
+- Letting `plans.jsonl` and `raw_runs.parquet` drift onto different identifiers.
 - Embedding plan JSON directly in the main parquet file in ways that become brittle later.
 - Letting the collector partially fail without surfacing that the dataset is incomplete.
-
-## Codex Prompt Contract
-
-Implement the query-generation and raw-collection pipeline only. This phase includes retries, timeout handling, exclusion logging, and manifests because those are part of collection correctness. Do not implement feature extraction or ML training. Before stopping, run the collector on a small slice and prove that success, timeout, and exclusion paths are all recorded correctly.
