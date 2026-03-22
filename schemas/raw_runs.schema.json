@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RawRunObservation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observation_id",
+    "run_attempt_id",
+    "query_instance_id",
+    "template_id",
+    "parameter_set_id",
+    "scale_factor",
+    "attempt_index",
+    "is_retry",
+    "run_status",
+    "include_in_modeling",
+    "exclusion_stage",
+    "exclusion_reason",
+    "planner_total_cost",
+    "execution_time_ms",
+    "wall_clock_runtime_ms",
+    "error_class",
+    "error_message"
+  ],
+  "properties": {
+    "observation_id": {
+      "type": "string"
+    },
+    "run_attempt_id": {
+      "type": "string"
+    },
+    "query_instance_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "parameter_set_id": {
+      "type": "string"
+    },
+    "scale_factor": {
+      "type": "number",
+      "enum": [0.1, 1.0, 10.0]
+    },
+    "attempt_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "is_retry": {
+      "type": "boolean"
+    },
+    "run_status": {
+      "type": "string",
+      "enum": ["succeeded", "failed", "timed_out", "excluded"]
+    },
+    "include_in_modeling": {
+      "type": "boolean"
+    },
+    "exclusion_stage": {
+      "type": ["string", "null"],
+      "enum": [null, "collection", "sql_featurization", "plan_featurization", "dataset_assembly"]
+    },
+    "exclusion_reason": {
+      "type": ["string", "null"]
+    },
+    "planner_total_cost": {
+      "type": ["number", "null"]
+    },
+    "execution_time_ms": {
+      "type": ["number", "null"]
+    },
+    "wall_clock_runtime_ms": {
+      "type": ["number", "null"]
+    },
+    "error_class": {
+      "type": ["string", "null"]
+    },
+    "error_message": {
+      "type": ["string", "null"]
+    }
+  }
+}

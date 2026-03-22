@@ -1,0 +1,45 @@
+[experiment]
+postgresql_version = "16"
+tpch_scale_factors = [0.1, 1.0, 10.0]
+query_timeout_seconds = 300
+retry_count = 2
+runs_per_query = 3
+primary_timing_label_policy = "execution_time_ms is the canonical latency target for modeling and reporting; wall_clock_runtime_ms remains recorded for diagnostics."
+seed = 20260322
+modeling_grain = "successful_observation"
+final_null_handling_policy = "Retain nullable source features, add explicit null indicator fields in the final modeling dataset, and exclude rows only when the observation never produced required targets."
+
+[experiment.scale_factor_databases]
+"0.1" = "tpch_sf_0_1"
+"1.0" = "tpch_sf_1"
+"10.0" = "tpch_sf_10"
+
+[experiment.split_modes]
+baseline = "random_query_instance_split"
+grouped = "template_grouped_holdout"
+
+[experiment.required_metrics]
+baseline = [
+  "planner_total_cost",
+  "execution_time_ms",
+  "mae",
+  "rmse",
+  "mape",
+  "q_error_p50",
+  "q_error_p90",
+  "q_error_p95",
+  "q_error_p99",
+  "r2",
+]
+grouped = [
+  "planner_total_cost",
+  "execution_time_ms",
+  "mae",
+  "rmse",
+  "mape",
+  "q_error_p50",
+  "q_error_p90",
+  "q_error_p95",
+  "q_error_p99",
+  "group_support",
+]

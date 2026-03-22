@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanFeaturesRow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query_instance_id",
+    "template_id",
+    "parameter_set_id",
+    "scale_factor",
+    "broadcast_to_modeling_grain",
+    "feature_status",
+    "plan_node_count",
+    "join_node_count",
+    "scan_node_count",
+    "aggregate_node_count",
+    "sort_node_count",
+    "planner_estimated_rows",
+    "planner_total_cost"
+  ],
+  "properties": {
+    "query_instance_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "parameter_set_id": {
+      "type": "string"
+    },
+    "scale_factor": {
+      "type": "number",
+      "enum": [0.1, 1.0, 10.0]
+    },
+    "broadcast_to_modeling_grain": {
+      "type": "boolean",
+      "const": true
+    },
+    "feature_status": {
+      "type": "string",
+      "enum": ["available", "excluded"]
+    },
+    "plan_node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "join_node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scan_node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "aggregate_node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sort_node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "planner_estimated_rows": {
+      "type": ["number", "null"]
+    },
+    "planner_total_cost": {
+      "type": ["number", "null"]
+    }
+  }
+}

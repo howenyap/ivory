@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GroupedMetricsArtifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_path",
+    "grouped_split",
+    "targets"
+  ],
+  "properties": {
+    "artifact_path": {
+      "type": "string",
+      "const": "artifacts/evaluation/grouped_metrics.json"
+    },
+    "grouped_split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "split_mode",
+        "group_key",
+        "train_groups",
+        "test_groups"
+      ],
+      "properties": {
+        "split_mode": {
+          "type": "string",
+          "const": "template_grouped_holdout"
+        },
+        "group_key": {
+          "type": "string",
+          "const": "template_id"
+        },
+        "train_groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "test_groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_total_cost",
+        "execution_time_ms"
+      ],
+      "properties": {
+        "planner_total_cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mae",
+            "rmse",
+            "mape",
+            "q_error_p50",
+            "q_error_p90",
+            "q_error_p95",
+            "q_error_p99",
+            "group_support"
+          ],
+          "properties": {
+            "mae": {
+              "type": "number"
+            },
+            "rmse": {
+              "type": "number"
+            },
+            "mape": {
+              "type": "number"
+            },
+            "q_error_p50": {
+              "type": "number"
+            },
+            "q_error_p90": {
+              "type": "number"
+            },
+            "q_error_p95": {
+              "type": "number"
+            },
+            "q_error_p99": {
+              "type": "number"
+            },
+            "group_support": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "execution_time_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mae",
+            "rmse",
+            "mape",
+            "q_error_p50",
+            "q_error_p90",
+            "q_error_p95",
+            "q_error_p99",
+            "group_support"
+          ],
+          "properties": {
+            "mae": {
+              "type": "number"
+            },
+            "rmse": {
+              "type": "number"
+            },
+            "mape": {
+              "type": "number"
+            },
+            "q_error_p50": {
+              "type": "number"
+            },
+            "q_error_p90": {
+              "type": "number"
+            },
+            "q_error_p95": {
+              "type": "number"
+            },
+            "q_error_p99": {
+              "type": "number"
+            },
+            "group_support": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

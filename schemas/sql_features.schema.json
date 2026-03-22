@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SqlFeaturesRow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query_instance_id",
+    "template_id",
+    "parameter_set_id",
+    "scale_factor",
+    "broadcast_to_modeling_grain",
+    "feature_status",
+    "table_count",
+    "join_count",
+    "predicate_count",
+    "group_by_count",
+    "order_by_count",
+    "limit_count",
+    "subquery_count"
+  ],
+  "properties": {
+    "query_instance_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "parameter_set_id": {
+      "type": "string"
+    },
+    "scale_factor": {
+      "type": "number",
+      "enum": [0.1, 1.0, 10.0]
+    },
+    "broadcast_to_modeling_grain": {
+      "type": "boolean",
+      "const": true
+    },
+    "feature_status": {
+      "type": "string",
+      "enum": ["available", "excluded"]
+    },
+    "table_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "join_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "predicate_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "group_by_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "order_by_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "limit_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subquery_count": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

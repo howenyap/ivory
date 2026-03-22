@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModelingFeaturesRow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observation_id",
+    "run_attempt_id",
+    "query_instance_id",
+    "template_id",
+    "parameter_set_id",
+    "scale_factor",
+    "sql_features_broadcast",
+    "plan_features_broadcast",
+    "null_indicator_columns",
+    "targets",
+    "sql_features",
+    "plan_features"
+  ],
+  "properties": {
+    "observation_id": {
+      "type": "string"
+    },
+    "run_attempt_id": {
+      "type": "string"
+    },
+    "query_instance_id": {
+      "type": "string"
+    },
+    "template_id": {
+      "type": "string"
+    },
+    "parameter_set_id": {
+      "type": "string"
+    },
+    "scale_factor": {
+      "type": "number",
+      "enum": [0.1, 1.0, 10.0]
+    },
+    "sql_features_broadcast": {
+      "type": "boolean",
+      "const": true
+    },
+    "plan_features_broadcast": {
+      "type": "boolean",
+      "const": true
+    },
+    "null_indicator_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_total_cost",
+        "execution_time_ms"
+      ],
+      "properties": {
+        "planner_total_cost": {
+          "type": "number"
+        },
+        "execution_time_ms": {
+          "type": "number"
+        }
+      }
+    },
+    "sql_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table_count",
+        "join_count",
+        "predicate_count",
+        "group_by_count",
+        "order_by_count",
+        "limit_count",
+        "subquery_count"
+      ],
+      "properties": {
+        "table_count": {
+          "type": ["integer", "null"]
+        },
+        "join_count": {
+          "type": ["integer", "null"]
+        },
+        "predicate_count": {
+          "type": ["integer", "null"]
+        },
+        "group_by_count": {
+          "type": ["integer", "null"]
+        },
+        "order_by_count": {
+          "type": ["integer", "null"]
+        },
+        "limit_count": {
+          "type": ["integer", "null"]
+        },
+        "subquery_count": {
+          "type": ["integer", "null"]
+        }
+      }
+    },
+    "plan_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_node_count",
+        "join_node_count",
+        "scan_node_count",
+        "aggregate_node_count",
+        "sort_node_count",
+        "planner_estimated_rows",
+        "planner_total_cost"
+      ],
+      "properties": {
+        "plan_node_count": {
+          "type": ["integer", "null"]
+        },
+        "join_node_count": {
+          "type": ["integer", "null"]
+        },
+        "scan_node_count": {
+          "type": ["integer", "null"]
+        },
+        "aggregate_node_count": {
+          "type": ["integer", "null"]
+        },
+        "sort_node_count": {
+          "type": ["integer", "null"]
+        },
+        "planner_estimated_rows": {
+          "type": ["number", "null"]
+        },
+        "planner_total_cost": {
+          "type": ["number", "null"]
+        }
+      }
+    }
+  }
+}

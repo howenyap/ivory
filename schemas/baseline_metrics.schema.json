@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BaselineMetricsArtifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_path",
+    "split_mode",
+    "targets"
+  ],
+  "properties": {
+    "artifact_path": {
+      "type": "string",
+      "const": "artifacts/models/baseline_metrics.json"
+    },
+    "split_mode": {
+      "type": "string",
+      "const": "random_query_instance_split"
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "planner_total_cost",
+        "execution_time_ms"
+      ],
+      "properties": {
+        "planner_total_cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mae",
+            "rmse",
+            "mape",
+            "q_error_p50",
+            "q_error_p90",
+            "q_error_p95",
+            "q_error_p99",
+            "r2"
+          ],
+          "properties": {
+            "mae": {
+              "type": "number"
+            },
+            "rmse": {
+              "type": "number"
+            },
+            "mape": {
+              "type": "number"
+            },
+            "q_error_p50": {
+              "type": "number"
+            },
+            "q_error_p90": {
+              "type": "number"
+            },
+            "q_error_p95": {
+              "type": "number"
+            },
+            "q_error_p99": {
+              "type": "number"
+            },
+            "r2": {
+              "type": "number"
+            }
+          }
+        },
+        "execution_time_ms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mae",
+            "rmse",
+            "mape",
+            "q_error_p50",
+            "q_error_p90",
+            "q_error_p95",
+            "q_error_p99",
+            "r2"
+          ],
+          "properties": {
+            "mae": {
+              "type": "number"
+            },
+            "rmse": {
+              "type": "number"
+            },
+            "mape": {
+              "type": "number"
+            },
+            "q_error_p50": {
+              "type": "number"
+            },
+            "q_error_p90": {
+              "type": "number"
+            },
+            "q_error_p95": {
+              "type": "number"
+            },
+            "q_error_p99": {
+              "type": "number"
+            },
+            "r2": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  }
+}

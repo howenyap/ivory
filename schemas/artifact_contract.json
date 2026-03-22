@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract_version": "phase-0b",
+  "modeling_grain": "successful_observation",
+  "artifacts": {
+    "raw_runs": {
+      "path": "artifacts/collection/raw_runs.jsonl",
+      "schema": "schemas/raw_runs.schema.json",
+      "grain": "one row per recorded run attempt"
+    },
+    "sql_features": {
+      "path": "artifacts/features/sql_features.jsonl",
+      "schema": "schemas/sql_features.schema.json",
+      "grain": "one row per query_instance_id"
+    },
+    "plan_features": {
+      "path": "artifacts/features/plan_features.jsonl",
+      "schema": "schemas/plan_features.schema.json",
+      "grain": "one row per query_instance_id"
+    },
+    "features": {
+      "path": "artifacts/features/features.jsonl",
+      "schema": "schemas/features.schema.json",
+      "grain": "one row per successful observation_id"
+    },
+    "baseline_metrics": {
+      "path": "artifacts/models/baseline_metrics.json",
+      "schema": "schemas/baseline_metrics.schema.json"
+    },
+    "grouped_metrics": {
+      "path": "artifacts/evaluation/grouped_metrics.json",
+      "schema": "schemas/grouped_metrics.schema.json"
+    }
+  },
+  "keys": {
+    "template_id": "Stable identifier for the normalized SQL template before parameter binding.",
+    "parameter_set_id": "Stable identifier for the concrete parameter binding applied to a template.",
+    "query_instance_id": "Stable identifier for a rendered template_id plus parameter_set_id at a specific scale_factor.",
+    "scale_factor": "TPC-H scale factor associated with the database used to execute the query instance.",
+    "run_attempt_id": "Stable identifier for a single execution attempt of a query_instance_id, including retries.",
+    "observation_id": "Stable identifier for a recorded run row. In raw runs it equals run_attempt_id; in final features it remains the successful attempt identifier."
+  },
+  "status_fields": {
+    "run_status": [
+      "succeeded",
+      "failed",
+      "timed_out",
+      "excluded"
+    ],
+    "exclusion_stage": [
+      null,
+      "collection",
+      "sql_featurization",
+      "plan_featurization",
+      "dataset_assembly"
+    ],
+    "feature_availability": {
+      "sql_features_broadcast_to_successful_observations": true,
+      "plan_features_broadcast_to_successful_observations": true
+    }
+  },
+  "failure_semantics": {
+    "failed_runs": "Represent failed executions as raw run rows with run_status set to failed and null target metrics.",
+    "timed_out_runs": "Represent timeout executions as raw run rows with run_status set to timed_out and null target metrics.",
+    "excluded_runs": "Represent rows that are intentionally removed from downstream artifacts with run_status set to excluded and exclusion_stage plus exclusion_reason populated.",
+    "retried_runs": "Retried runs remain distinct rows with unique run_attempt_id values and is_retry set to true for every attempt after the first.",
+    "featurization_exclusions": "Rows excluded because SQL or plan features could not be produced stay in raw_runs and are omitted from features while recording exclusion_stage and exclusion_reason."
+  }
+}
