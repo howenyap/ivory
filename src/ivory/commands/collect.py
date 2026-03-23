@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from ivory.collection import collect_raw_artifacts
+from ivory.collection import (
+    DEFAULT_PARAMETER_SETS_PER_TEMPLATE,
+    collect_raw_artifacts,
+)
 from ivory.config import experiment_scale_factors, load_config
 from ivory.postgres import (
     TPCH_TABLES,
@@ -50,7 +53,11 @@ def register_collect_subparser(
         "--limit-params",
         type=int,
         default=None,
-        help="Limit collection to the first N parameter sets per template.",
+        help=(
+            "Limit collection to the first N parameter sets per template. "
+            f"Without this flag, full collection uses "
+            f"{DEFAULT_PARAMETER_SETS_PER_TEMPLATE} parameter sets per template."
+        ),
     )
     collect_parser.add_argument(
         "--limit-scales",
@@ -63,6 +70,11 @@ def register_collect_subparser(
         type=int,
         default=None,
         help="Override the query statement timeout in milliseconds.",
+    )
+    collect_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume a previously interrupted collection run from checkpoint data.",
     )
     collect_parser.set_defaults(handler=_handle_collect)
     collect_subparsers = collect_parser.add_subparsers(
@@ -132,6 +144,7 @@ def _handle_collect(args: argparse.Namespace) -> int:
         limit_params=args.limit_params,
         limit_scales=args.limit_scales,
         timeout_ms=args.timeout_ms,
+        resume=args.resume,
     )
     raw_rows = manifest["artifacts"]["raw_runs"]["row_count"]
     plan_rows = manifest["artifacts"]["plans"]["row_count"]

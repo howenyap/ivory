@@ -23,6 +23,7 @@ Generate parameterized TPC-H query instances, execute them against PostgreSQL wi
 ## Implementation Steps
 
 1. Implement deterministic parameter generation for all targeted TPC-H templates.
+   Default the main collection run to `50` parameter sets per template per scale factor unless the CLI explicitly narrows it for a smoke slice.
 2. Implement the exact identifier contract frozen in Phase `0b`. At minimum, every successful collected run must carry:
    - `template_id`
    - `parameter_set_id`

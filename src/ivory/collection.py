@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,8 +26,12 @@ RAW_RUNS_PATH = RAW_ARTIFACT_DIR / "raw_runs.parquet"
 PLANS_PATH = RAW_ARTIFACT_DIR / "plans.jsonl"
 MANIFEST_PATH = RAW_ARTIFACT_DIR / "collection_manifest.json"
 EXCLUSIONS_PATH = RAW_ARTIFACT_DIR / "exclusions.parquet"
+RAW_RUNS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".raw_runs.checkpoint.jsonl"
+PLANS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".plans.checkpoint.jsonl"
+EXCLUSIONS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".exclusions.checkpoint.jsonl"
+STATE_PATH = RAW_ARTIFACT_DIR / ".collection_state.json"
 TPCH_TEMPLATE_IDS = tuple(f"q{query_id}" for query_id in range(1, 23))
-DEFAULT_PARAMETER_SETS_PER_TEMPLATE = 10
+DEFAULT_PARAMETER_SETS_PER_TEMPLATE = 50
 STATUS_TO_RUN_STATUS = {
     "success": "succeeded",
     "failed": "failed",
@@ -43,6 +49,13 @@ INTERVAL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 LIMIT_PATTERN = re.compile(r"limit\s+(?P<limit>-?\d+)\s*;", re.IGNORECASE)
+LOG_COLORS = {
+    "info": "\033[36m",
+    "success": "\033[32m",
+    "warning": "\033[33m",
+    "error": "\033[31m",
+}
+LOG_RESET = "\033[0m"
 
 
 @dataclass(frozen=True)
@@ -70,6 +83,49 @@ class AttemptExecution:
     failure_reason: str | None
 
 
+@dataclass(frozen=True)
+class QueryKey:
+    template_id: str
+    template_number: int
+    parameter_set_id: str
+    query_instance_id: str
+    scale_factor: str
+    parameter_index: int
+    qgen_seed: int
+
+
+def log_progress(message: str, *, level: str = "info") -> None:
+    """Print a flushed progress line for long-running collection work."""
+    prefix = f"[{level.upper()}]"
+    if _supports_color():
+        color = LOG_COLORS.get(level, "")
+        prefix = f"{color}{prefix}{LOG_RESET}"
+    print(f"{prefix} {message}", flush=True)
+
+
+def _supports_color() -> bool:
+    """Return whether stdout likely supports ANSI color output."""
+    return sys.stdout.isatty() and "NO_COLOR" not in os.environ
+
+
+def format_progress(current: int, total: int) -> str:
+    """Format a compact progress counter with percent complete."""
+    return f"{current}/{total} ({(current / total) * 100:5.1f}%)"
+
+
+def format_query_label(
+    *,
+    template_id: str,
+    scale_factor: str,
+    parameter_index: int,
+    parameter_count: int,
+) -> str:
+    """Format a compact query-instance label for logging."""
+    return (
+        f"{template_id} sf={scale_factor} param={parameter_index + 1}/{parameter_count}"
+    )
+
+
 def collect_raw_artifacts(
     config: dict[str, Any],
     settings: PostgresConfig,
@@ -80,6 +136,7 @@ def collect_raw_artifacts(
     limit_scales: int | None = None,
     timeout_ms: int | None = None,
     params_per_template: int = DEFAULT_PARAMETER_SETS_PER_TEMPLATE,
+    resume: bool = False,
 ) -> dict[str, Any]:
     """Run the phase 1b collection workflow and persist raw artifacts."""
     seed = int(config["experiment"]["seed"])
@@ -95,42 +152,222 @@ def collect_raw_artifacts(
     selected_scales = _select_scales(config, limit_scales)
     selected_templates = _select_templates(limit_templates)
     parameter_count = limit_params if limit_params is not None else params_per_template
+    RAW_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    state = build_collection_state(
+        config=config,
+        config_path=config_path,
+        selected_scales=selected_scales,
+        selected_templates=selected_templates,
+        timeout_ms=effective_timeout_ms,
+        retry_count=retry_count,
+        params_per_template=parameter_count,
+    )
+    if resume:
+        validate_resume_state(state)
+        raw_rows, plan_rows, exclusion_rows = load_checkpoint_rows()
+    else:
+        initialize_collection_state(state)
+        raw_rows = []
+        plan_rows = []
+        exclusion_rows = []
 
-    raw_rows: list[dict[str, Any]] = []
-    plan_rows: list[dict[str, Any]] = []
-    exclusion_rows: list[dict[str, Any]] = []
+    existing_attempts_by_run = group_attempt_rows_by_run(raw_rows)
+    completed_run_ids = terminal_run_ids(raw_rows, plan_rows, exclusion_rows)
+    total_query_instances = (
+        len(selected_scales) * len(selected_templates) * parameter_count
+    )
+    total_runs = total_query_instances * runs_per_query
+    log_progress(
+        "collection start | "
+        f"scales={len(selected_scales)} templates={len(selected_templates)} "
+        f"params={parameter_count} runs={runs_per_query} "
+        f"instances={total_query_instances} logical_runs={total_runs} "
+        f"resume={'yes' if resume else 'no'} timeout_ms={effective_timeout_ms}",
+        level="info",
+    )
+    if completed_run_ids:
+        log_progress(
+            "resume state | "
+            f"completed={format_progress(len(completed_run_ids), total_runs)}",
+            level="warning",
+        )
 
     for scale_factor in selected_scales:
         for template_id in selected_templates:
             for parameter_index in range(parameter_count):
-                query_instance = build_query_instance(
-                    settings=settings,
+                query_key = build_query_key(
                     template_id=template_id,
                     scale_factor=scale_factor,
                     parameter_index=parameter_index,
                     seed=seed,
                 )
+                query_instance_completed_runs = sum(
+                    1
+                    for run_index in range(runs_per_query)
+                    if build_run_id(query_key.query_instance_id, run_index)
+                    in completed_run_ids
+                )
+                if query_instance_completed_runs == runs_per_query:
+                    query_label = format_query_label(
+                        template_id=template_id,
+                        scale_factor=scale_factor,
+                        parameter_index=parameter_index,
+                        parameter_count=parameter_count,
+                    )
+                    log_progress(
+                        "skip instance | "
+                        f"{query_label} | "
+                        "completed="
+                        f"{format_progress(len(completed_run_ids), total_runs)}",
+                        level="warning",
+                    )
+                    continue
+                query_label = format_query_label(
+                    template_id=template_id,
+                    scale_factor=scale_factor,
+                    parameter_index=parameter_index,
+                    parameter_count=parameter_count,
+                )
+                log_progress(
+                    f"instance | {query_label}",
+                    level="info",
+                )
+                try:
+                    query_instance = build_query_instance(
+                        settings=settings,
+                        query_key=query_key,
+                    )
+                except Exception as exc:
+                    log_progress(
+                        f"qgen failed | {query_label} | {type(exc).__name__}: {exc}",
+                        level="error",
+                    )
+                    for run_index in range(runs_per_query):
+                        run_id = build_run_id(query_key.query_instance_id, run_index)
+                        if run_id in completed_run_ids:
+                            continue
+                        existing_attempt_rows = existing_attempts_by_run.get(run_id, [])
+                        failure_rows, exclusion_row = record_generation_failure(
+                            query_key=query_key,
+                            run_index=run_index,
+                            error=exc,
+                            retry_count=retry_count,
+                            existing_attempt_rows=existing_attempt_rows,
+                        )
+                        if failure_rows:
+                            raw_rows.extend(failure_rows)
+                            append_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH, failure_rows)
+                            existing_attempts_by_run[run_id] = (
+                                existing_attempt_rows + failure_rows
+                            )
+                        if exclusion_row is not None:
+                            exclusion_rows.append(exclusion_row)
+                            append_jsonl_rows(
+                                EXCLUSIONS_CHECKPOINT_PATH, [exclusion_row]
+                            )
+                            completed_run_ids.add(run_id)
+                            completed_progress = format_progress(
+                                len(completed_run_ids), total_runs
+                            )
+                            log_progress(
+                                "excluded | "
+                                f"{query_key.template_id} sf={query_key.scale_factor} "
+                                "param="
+                                f"{query_key.parameter_index + 1}/{parameter_count} "
+                                f"run={run_index + 1}/{runs_per_query} "
+                                f"| completed={completed_progress}",
+                                level="error",
+                            )
+                        materialize_collection_artifacts(
+                            config=config,
+                            config_path=config_path,
+                            selected_scales=selected_scales,
+                            selected_templates=selected_templates,
+                            timeout_ms=effective_timeout_ms,
+                            retry_count=retry_count,
+                            params_per_template=parameter_count,
+                            raw_rows=raw_rows,
+                            plan_rows=plan_rows,
+                            exclusion_rows=exclusion_rows,
+                        )
+                    continue
                 for run_index in range(runs_per_query):
+                    run_id = build_run_id(query_instance.query_instance_id, run_index)
+                    if run_id in completed_run_ids:
+                        continue
+                    log_progress(
+                        "run | "
+                        f"{format_progress(len(completed_run_ids) + 1, total_runs)} "
+                        f"| {template_id} sf={scale_factor} "
+                        f"param={parameter_index + 1}/{parameter_count} "
+                        f"run={run_index + 1}/{runs_per_query}",
+                        level="info",
+                    )
                     attempts = collect_query_attempts(
                         settings=settings,
                         query_instance=query_instance,
                         run_index=run_index,
                         retry_count=retry_count,
                         timeout_ms=effective_timeout_ms,
+                        existing_attempt_rows=existing_attempts_by_run.get(run_id, []),
                     )
-                    raw_rows.extend(attempts["raw_rows"])
-                    plan_rows.extend(attempts["plan_rows"])
+                    new_raw_rows = attempts["raw_rows"]
+                    new_plan_rows = attempts["plan_rows"]
+                    if new_raw_rows:
+                        raw_rows.extend(new_raw_rows)
+                        append_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH, new_raw_rows)
+                        existing_attempts_by_run[run_id] = (
+                            existing_attempts_by_run.get(run_id, []) + new_raw_rows
+                        )
+                    if new_plan_rows:
+                        plan_rows.extend(new_plan_rows)
+                        append_jsonl_rows(PLANS_CHECKPOINT_PATH, new_plan_rows)
                     if attempts["exclusion_row"] is not None:
-                        exclusion_rows.append(attempts["exclusion_row"])
+                        exclusion_row = attempts["exclusion_row"]
+                        exclusion_rows.append(exclusion_row)
+                        append_jsonl_rows(EXCLUSIONS_CHECKPOINT_PATH, [exclusion_row])
+                        completed_run_ids.add(run_id)
+                        completed_progress = format_progress(
+                            len(completed_run_ids), total_runs
+                        )
+                        log_progress(
+                            "excluded | "
+                            f"{template_id} sf={scale_factor} "
+                            f"param={parameter_index + 1}/{parameter_count} "
+                            f"run={run_index + 1}/{runs_per_query} "
+                            f"| reason={exclusion_row['failure_reason']} "
+                            f"| completed={completed_progress}",
+                            level="error",
+                        )
+                    elif new_plan_rows:
+                        completed_run_ids.add(run_id)
+                        execution_row = new_raw_rows[-1]
+                        completed_progress = format_progress(
+                            len(completed_run_ids), total_runs
+                        )
+                        log_progress(
+                            "ok | "
+                            f"{template_id} sf={scale_factor} "
+                            f"param={parameter_index + 1}/{parameter_count} "
+                            f"run={run_index + 1}/{runs_per_query} "
+                            f"| exec_ms={execution_row['execution_time_ms']:.3f} "
+                            f"| completed={completed_progress}",
+                            level="success",
+                        )
+                    materialize_collection_artifacts(
+                        config=config,
+                        config_path=config_path,
+                        selected_scales=selected_scales,
+                        selected_templates=selected_templates,
+                        timeout_ms=effective_timeout_ms,
+                        retry_count=retry_count,
+                        params_per_template=parameter_count,
+                        raw_rows=raw_rows,
+                        plan_rows=plan_rows,
+                        exclusion_rows=exclusion_rows,
+                    )
 
-    RAW_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    raw_frame = _raw_runs_frame(raw_rows)
-    exclusion_frame = _exclusions_frame(exclusion_rows)
-    raw_frame.write_parquet(RAW_RUNS_PATH)
-    exclusion_frame.write_parquet(EXCLUSIONS_PATH)
-    _write_plans(plan_rows)
-
-    manifest = build_collection_manifest(
+    manifest = materialize_collection_artifacts(
         config=config,
         config_path=config_path,
         selected_scales=selected_scales,
@@ -142,7 +379,12 @@ def collect_raw_artifacts(
         plan_rows=plan_rows,
         exclusion_rows=exclusion_rows,
     )
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    cleanup_checkpoint_files()
+    log_progress(
+        "collection finished | "
+        f"completed={format_progress(len(completed_run_ids), total_runs)}",
+        level="success",
+    )
     return manifest
 
 
@@ -153,15 +395,37 @@ def collect_query_attempts(
     run_index: int,
     retry_count: int,
     timeout_ms: int,
+    existing_attempt_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Collect all attempts for one observation run."""
     raw_rows: list[dict[str, Any]] = []
     plan_rows: list[dict[str, Any]] = []
     exclusion_row: dict[str, Any] | None = None
     max_attempts = retry_count + 1
-    final_attempt: dict[str, Any] | None = None
+    existing_attempt_rows = existing_attempt_rows or []
+    final_attempt: dict[str, Any] | None = (
+        existing_attempt_rows[-1] if existing_attempt_rows else None
+    )
 
-    for attempt_number in range(1, max_attempts + 1):
+    if existing_attempt_rows and len(existing_attempt_rows) >= max_attempts:
+        assert final_attempt is not None
+        exclusion_row = build_exclusion_row(final_attempt)
+        return {
+            "raw_rows": raw_rows,
+            "plan_rows": plan_rows,
+            "exclusion_row": exclusion_row,
+        }
+
+    for attempt_number in range(len(existing_attempt_rows) + 1, max_attempts + 1):
+        if attempt_number > 1:
+            log_progress(
+                "retry | "
+                f"{query_instance.template_id} sf={query_instance.scale_factor} "
+                f"param={query_instance.parameter_index + 1} "
+                f"run={run_index + 1} "
+                f"attempt={attempt_number}/{max_attempts}",
+                level="warning",
+            )
         execution = execute_query_instance(
             settings=settings,
             query_instance=query_instance,
@@ -175,6 +439,17 @@ def collect_query_attempts(
         )
         raw_rows.append(attempt_row)
         final_attempt = attempt_row
+        if execution.status != "success":
+            log_progress(
+                "attempt failed | "
+                f"{query_instance.template_id} sf={query_instance.scale_factor} "
+                f"param={query_instance.parameter_index + 1} "
+                f"run={run_index + 1} "
+                f"attempt={attempt_number}/{max_attempts} "
+                f"| status={execution.status} "
+                f"| reason={execution.failure_reason or 'unknown'}",
+                level="error" if execution.status == "failed" else "warning",
+            )
         if execution.status == "success":
             plan_rows.append(
                 {
@@ -199,33 +474,49 @@ def collect_query_attempts(
     }
 
 
-def build_query_instance(
+def build_query_key(
     *,
-    settings: PostgresConfig,
     template_id: str,
     scale_factor: str,
     parameter_index: int,
     seed: int,
-) -> QueryInstance:
-    """Build a deterministic query instance for one template and scale factor."""
+) -> QueryKey:
+    """Build deterministic query identifiers before SQL generation."""
     template_number = template_id_to_number(template_id)
     qgen_seed = parameter_seed(seed, template_number, parameter_index)
     parameter_set_id = f"{template_id}-p{parameter_index:04d}"
     query_instance_id = f"{template_id}-{parameter_set_id}-sf-{scale_factor}"
-    raw_sql = generate_tpch_query_sql(
-        settings=settings,
-        template_number=template_number,
-        scale_factor=scale_factor,
-        qgen_seed=qgen_seed,
-    )
-    sql_text = normalize_qgen_sql(raw_sql, template_number)
-    return QueryInstance(
+    return QueryKey(
         template_id=template_id,
+        template_number=template_number,
         parameter_set_id=parameter_set_id,
         query_instance_id=query_instance_id,
         scale_factor=scale_factor,
         parameter_index=parameter_index,
         qgen_seed=qgen_seed,
+    )
+
+
+def build_query_instance(
+    *,
+    settings: PostgresConfig,
+    query_key: QueryKey,
+) -> QueryInstance:
+    """Build a deterministic query instance for one template and scale factor."""
+    raw_sql = generate_tpch_query_sql(
+        settings=settings,
+        template_number=query_key.template_number,
+        scale_factor=query_key.scale_factor,
+        qgen_seed=query_key.qgen_seed,
+    )
+    sql_text = normalize_qgen_sql(raw_sql, query_key.template_number)
+    return QueryInstance(
+        template_id=query_key.template_id,
+        parameter_set_id=query_key.parameter_set_id,
+        query_instance_id=query_key.query_instance_id,
+        scale_factor=query_key.scale_factor,
+        parameter_index=query_key.parameter_index,
+        qgen_seed=query_key.qgen_seed,
         sql_text=sql_text,
     )
 
@@ -238,6 +529,20 @@ def template_id_to_number(template_id: str) -> int:
 def parameter_seed(base_seed: int, template_number: int, parameter_index: int) -> int:
     """Derive a deterministic qgen seed for one parameter set."""
     return base_seed + (template_number * 10000) + parameter_index
+
+
+def build_run_id(query_instance_id: str, run_index: int) -> str:
+    """Build the stable identifier for a logical run before retries."""
+    return f"{query_instance_id}-run-{run_index + 1:02d}"
+
+
+def run_id_from_attempt_row(row: dict[str, Any]) -> str:
+    """Return the logical run id for a raw attempt or exclusion row."""
+    run_id = row.get("run_id")
+    if isinstance(run_id, str) and run_id:
+        return run_id
+    run_attempt_id = str(row["run_attempt_id"])
+    return run_attempt_id.rsplit("-attempt-", 1)[0]
 
 
 def generate_tpch_query_sql(
@@ -393,13 +698,14 @@ def build_attempt_row(
     execution: AttemptExecution,
 ) -> dict[str, Any]:
     """Build the raw row for one query attempt."""
-    run_attempt_id = (
-        f"{query_instance.query_instance_id}-run-{run_index + 1:02d}"
-        f"-attempt-{attempt_number:02d}"
-    )
+    run_number = run_index + 1
+    run_id = build_run_id(query_instance.query_instance_id, run_index)
+    run_attempt_id = f"{run_id}-attempt-{attempt_number:02d}"
     return {
         "observation_id": run_attempt_id,
         "run_attempt_id": run_attempt_id,
+        "run_id": run_id,
+        "run_number": run_number,
         "query_instance_id": query_instance.query_instance_id,
         "template_id": query_instance.template_id,
         "parameter_set_id": query_instance.parameter_set_id,
@@ -431,6 +737,8 @@ def build_exclusion_row(final_attempt_row: dict[str, Any]) -> dict[str, Any]:
         **{
             key: final_attempt_row[key]
             for key in (
+                "run_id",
+                "run_number",
                 "query_instance_id",
                 "template_id",
                 "parameter_set_id",
@@ -456,6 +764,75 @@ def build_exclusion_row(final_attempt_row: dict[str, Any]) -> dict[str, Any]:
         "error_class": final_attempt_row["error_class"],
         "error_message": final_attempt_row["error_message"],
     }
+
+
+def build_generation_failure_row(
+    *,
+    query_key: QueryKey,
+    run_index: int,
+    attempt_number: int,
+    error: Exception,
+) -> dict[str, Any]:
+    """Build a failed raw row for query generation failures."""
+    run_number = run_index + 1
+    run_id = build_run_id(query_key.query_instance_id, run_index)
+    run_attempt_id = f"{run_id}-attempt-{attempt_number:02d}"
+    return {
+        "observation_id": run_attempt_id,
+        "run_attempt_id": run_attempt_id,
+        "run_id": run_id,
+        "run_number": run_number,
+        "query_instance_id": query_key.query_instance_id,
+        "template_id": query_key.template_id,
+        "parameter_set_id": query_key.parameter_set_id,
+        "scale_factor": float(query_key.scale_factor),
+        "attempt_index": attempt_number - 1,
+        "attempt_number": attempt_number,
+        "is_retry": attempt_number > 1,
+        "status": "failed",
+        "run_status": STATUS_TO_RUN_STATUS["failed"],
+        "failure_reason": "query_generation_failed",
+        "include_in_modeling": False,
+        "is_excluded": False,
+        "exclusion_stage": None,
+        "exclusion_reason": None,
+        "planner_total_cost": None,
+        "planning_time_ms": None,
+        "execution_time_ms": None,
+        "wall_clock_runtime_ms": 0.0,
+        "row_count": None,
+        "sql_text": "",
+        "error_class": error.__class__.__name__,
+        "error_message": str(error),
+    }
+
+
+def record_generation_failure(
+    *,
+    query_key: QueryKey,
+    run_index: int,
+    error: Exception,
+    retry_count: int,
+    existing_attempt_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """Record one terminal exclusion for query generation failure."""
+    max_attempts = retry_count + 1
+    if existing_attempt_rows and len(existing_attempt_rows) >= max_attempts:
+        return [], build_exclusion_row(existing_attempt_rows[-1])
+
+    new_attempt_rows = [
+        build_generation_failure_row(
+            query_key=query_key,
+            run_index=run_index,
+            attempt_number=attempt_number,
+            error=error,
+        )
+        for attempt_number in range(len(existing_attempt_rows) + 1, max_attempts + 1)
+    ]
+    exclusion_row = (
+        build_exclusion_row(new_attempt_rows[-1]) if new_attempt_rows else None
+    )
+    return new_attempt_rows, exclusion_row
 
 
 def build_collection_manifest(
@@ -517,11 +894,131 @@ def build_collection_manifest(
     }
 
 
+def build_collection_state(
+    *,
+    config: dict[str, Any],
+    config_path: str | None,
+    selected_scales: list[str],
+    selected_templates: list[str],
+    timeout_ms: int,
+    retry_count: int,
+    params_per_template: int,
+) -> dict[str, Any]:
+    """Build resume metadata for one collection run."""
+    return {
+        "config_path": str((ROOT_DIR / (config_path or DEFAULT_CONFIG_PATH)).resolve()),
+        "config_hash_sha256": config_hash(config_path),
+        "scale_factors_included": selected_scales,
+        "templates_included": selected_templates,
+        "timeout_ms": timeout_ms,
+        "retry_count": retry_count,
+        "runs_per_query": int(config["experiment"]["runs_per_query"]),
+        "parameter_sets_per_template": params_per_template,
+    }
+
+
+def validate_resume_state(expected_state: dict[str, Any]) -> None:
+    """Validate that checkpoint state matches the requested resume configuration."""
+    if not STATE_PATH.exists():
+        raise FileNotFoundError(
+            f"Cannot resume collection: missing checkpoint state file {STATE_PATH}."
+        )
+    actual_state = json.loads(STATE_PATH.read_text())
+    if actual_state != expected_state:
+        raise ValueError(
+            "Cannot resume collection with different settings. "
+            "Checkpoint state does not match the requested config, limits, or timeout."
+        )
+
+
+def initialize_collection_state(state: dict[str, Any]) -> None:
+    """Start a fresh collection run by resetting checkpoint files."""
+    cleanup_checkpoint_files()
+    cleanup_materialized_artifacts()
+    STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+
+
+def cleanup_checkpoint_files() -> None:
+    """Remove checkpoint files after a successful collection run."""
+    for path in (
+        RAW_RUNS_CHECKPOINT_PATH,
+        PLANS_CHECKPOINT_PATH,
+        EXCLUSIONS_CHECKPOINT_PATH,
+        STATE_PATH,
+    ):
+        path.unlink(missing_ok=True)
+
+
+def cleanup_materialized_artifacts() -> None:
+    """Remove visible raw artifacts before starting a fresh collection run."""
+    for path in (RAW_RUNS_PATH, PLANS_PATH, EXCLUSIONS_PATH, MANIFEST_PATH):
+        path.unlink(missing_ok=True)
+
+
 def config_hash(config_path: str | None) -> str:
     """Return the SHA256 hash of the active config file."""
     path = Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
     config_bytes = (ROOT_DIR / path).resolve().read_bytes()
     return hashlib.sha256(config_bytes).hexdigest()
+
+
+def load_checkpoint_rows() -> tuple[
+    list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]
+]:
+    """Load checkpointed raw, plan, and exclusion rows."""
+    raw_rows = load_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH)
+    plan_rows = load_jsonl_rows(PLANS_CHECKPOINT_PATH)
+    exclusion_rows = load_jsonl_rows(EXCLUSIONS_CHECKPOINT_PATH)
+    raw_rows, plan_rows = reconcile_checkpoint_rows(raw_rows, plan_rows, exclusion_rows)
+    return raw_rows, plan_rows, exclusion_rows
+
+
+def load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
+    """Load JSONL rows from a checkpoint file when it exists."""
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text().splitlines():
+        if not line.strip():
+            continue
+        rows.append(json.loads(line))
+    return rows
+
+
+def append_jsonl_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Append checkpoint rows to a JSONL file."""
+    if not rows:
+        return
+    with path.open("a", encoding="utf-8") as output_file:
+        for row in rows:
+            output_file.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def reconcile_checkpoint_rows(
+    raw_rows: list[dict[str, Any]],
+    plan_rows: list[dict[str, Any]],
+    exclusion_rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Drop checkpoint rows that cannot form a consistent resumable state."""
+    exclusion_run_ids = {run_id_from_attempt_row(row) for row in exclusion_rows}
+    valid_raw_rows = [
+        row for row in raw_rows if run_id_from_attempt_row(row) not in exclusion_run_ids
+    ]
+
+    success_observation_ids = {
+        row["observation_id"] for row in valid_raw_rows if row["status"] == "success"
+    }
+    valid_plan_rows = [
+        row for row in plan_rows if row["observation_id"] in success_observation_ids
+    ]
+    valid_plan_observation_ids = {row["observation_id"] for row in valid_plan_rows}
+    reconciled_raw_rows = [
+        row
+        for row in valid_raw_rows
+        if row["status"] != "success"
+        or row["observation_id"] in valid_plan_observation_ids
+    ]
+    return reconciled_raw_rows, valid_plan_rows
 
 
 def git_revision() -> str | None:
@@ -536,6 +1033,35 @@ def git_revision() -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip()
+
+
+def group_attempt_rows_by_run(
+    raw_rows: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Group checkpointed attempt rows by logical run id."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in raw_rows:
+        run_id = run_id_from_attempt_row(row)
+        grouped.setdefault(run_id, []).append(row)
+    for run_rows in grouped.values():
+        run_rows.sort(key=lambda row: int(row["attempt_number"]))
+    return grouped
+
+
+def terminal_run_ids(
+    raw_rows: list[dict[str, Any]],
+    plan_rows: list[dict[str, Any]],
+    exclusion_rows: list[dict[str, Any]],
+) -> set[str]:
+    """Return run ids that already reached a terminal success or exclusion state."""
+    plan_observation_ids = {row["observation_id"] for row in plan_rows}
+    run_ids = {
+        run_id_from_attempt_row(row)
+        for row in raw_rows
+        if row["status"] == "success" and row["observation_id"] in plan_observation_ids
+    }
+    run_ids.update(run_id_from_attempt_row(row) for row in exclusion_rows)
+    return run_ids
 
 
 def status_counts(
@@ -563,10 +1089,47 @@ def _select_templates(limit_templates: int | None) -> list[str]:
     return templates
 
 
+def materialize_collection_artifacts(
+    *,
+    config: dict[str, Any],
+    config_path: str | None,
+    selected_scales: list[str],
+    selected_templates: list[str],
+    timeout_ms: int,
+    retry_count: int,
+    params_per_template: int,
+    raw_rows: list[dict[str, Any]],
+    plan_rows: list[dict[str, Any]],
+    exclusion_rows: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Write parquet/json artifacts and the manifest from in-memory rows."""
+    raw_frame = _raw_runs_frame(raw_rows)
+    exclusion_frame = _exclusions_frame(exclusion_rows)
+    raw_frame.write_parquet(RAW_RUNS_PATH)
+    exclusion_frame.write_parquet(EXCLUSIONS_PATH)
+    _write_plans(plan_rows)
+    manifest = build_collection_manifest(
+        config=config,
+        config_path=config_path,
+        selected_scales=selected_scales,
+        selected_templates=selected_templates,
+        timeout_ms=timeout_ms,
+        retry_count=retry_count,
+        params_per_template=params_per_template,
+        raw_rows=raw_rows,
+        plan_rows=plan_rows,
+        exclusion_rows=exclusion_rows,
+    )
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    return manifest
+
+
 def _raw_runs_frame(rows: list[dict[str, Any]]) -> pl.DataFrame:
     schema = {
         "observation_id": pl.String,
         "run_attempt_id": pl.String,
+        "run_id": pl.String,
+        "run_number": pl.Int64,
         "query_instance_id": pl.String,
         "template_id": pl.String,
         "parameter_set_id": pl.String,
@@ -597,6 +1160,8 @@ def _raw_runs_frame(rows: list[dict[str, Any]]) -> pl.DataFrame:
 
 def _exclusions_frame(rows: list[dict[str, Any]]) -> pl.DataFrame:
     schema = {
+        "run_id": pl.String,
+        "run_number": pl.Int64,
         "query_instance_id": pl.String,
         "template_id": pl.String,
         "parameter_set_id": pl.String,

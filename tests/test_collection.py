@@ -229,5 +229,193 @@ class ManifestTests(unittest.TestCase):
         )
 
 
+class ResumeAndCheckpointTests(unittest.TestCase):
+    def test_terminal_run_ids_require_matching_plan_for_success(self) -> None:
+        raw_rows = [
+            {
+                "run_id": "run-a",
+                "status": "success",
+                "observation_id": "obs-a",
+                "run_attempt_id": "obs-a",
+            },
+            {
+                "run_id": "run-b",
+                "status": "success",
+                "observation_id": "obs-b",
+                "run_attempt_id": "obs-b",
+            },
+        ]
+        plan_rows = [{"observation_id": "obs-a"}]
+        exclusion_rows = [{"run_id": "run-c"}]
+        run_ids = collection.terminal_run_ids(raw_rows, plan_rows, exclusion_rows)
+        self.assertEqual(run_ids, {"run-a", "run-c"})
+
+    def test_collect_query_attempts_resume_from_existing_failed_attempt(self) -> None:
+        existing_attempt_rows = [
+            {
+                "run_id": "q1-q1-p0000-sf-0.1-run-01",
+                "run_attempt_id": "q1-q1-p0000-sf-0.1-run-01-attempt-01",
+                "attempt_number": 1,
+                "status": "failed",
+            }
+        ]
+        execution = AttemptExecution(
+            status="success",
+            planner_total_cost=1.0,
+            planning_time_ms=2.0,
+            execution_time_ms=3.0,
+            wall_clock_runtime_ms=4.0,
+            row_count=5,
+            plan_document={"Plan": {"Total Cost": 1.0}},
+            error_class=None,
+            error_message=None,
+            failure_reason=None,
+        )
+        with patch.object(collection, "execute_query_instance", return_value=execution):
+            result = collection.collect_query_attempts(
+                settings=_settings(),
+                query_instance=_query_instance(),
+                run_index=0,
+                retry_count=2,
+                timeout_ms=1000,
+                existing_attempt_rows=existing_attempt_rows,
+            )
+
+        self.assertEqual(len(result["raw_rows"]), 1)
+        self.assertEqual(result["raw_rows"][0]["attempt_number"], 2)
+        self.assertEqual(result["raw_rows"][0]["status"], "success")
+
+    def test_record_generation_failure_produces_terminal_exclusion(self) -> None:
+        query_key = collection.build_query_key(
+            template_id="q1",
+            scale_factor="0.1",
+            parameter_index=0,
+            seed=123,
+        )
+        rows, exclusion = collection.record_generation_failure(
+            query_key=query_key,
+            run_index=0,
+            error=RuntimeError("qgen boom"),
+            retry_count=2,
+            existing_attempt_rows=[],
+        )
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[-1]["failure_reason"], "query_generation_failed")
+        self.assertIsNotNone(exclusion)
+        assert exclusion is not None
+        self.assertEqual(exclusion["status"], "excluded")
+        self.assertEqual(exclusion["failure_reason"], "query_generation_failed")
+
+    def test_load_checkpoint_rows_discards_orphaned_success_and_plan_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            raw_checkpoint = Path(tmpdir) / ".raw.jsonl"
+            plan_checkpoint = Path(tmpdir) / ".plans.jsonl"
+            exclusions_checkpoint = Path(tmpdir) / ".exclusions.jsonl"
+            raw_checkpoint.write_text(
+                "\n".join(
+                    [
+                        '{"run_id":"run-a","run_attempt_id":"obs-a","observation_id":"obs-a","attempt_number":1,"status":"success"}',
+                        '{"run_id":"run-b","run_attempt_id":"obs-b","observation_id":"obs-b","attempt_number":1,"status":"failed"}',
+                    ]
+                )
+                + "\n"
+            )
+            plan_checkpoint.write_text(
+                "\n".join(
+                    [
+                        '{"observation_id":"obs-a"}',
+                        '{"observation_id":"obs-z"}',
+                    ]
+                )
+                + "\n"
+            )
+            exclusions_checkpoint.write_text("")
+
+            with (
+                patch.object(collection, "RAW_RUNS_CHECKPOINT_PATH", raw_checkpoint),
+                patch.object(collection, "PLANS_CHECKPOINT_PATH", plan_checkpoint),
+                patch.object(
+                    collection, "EXCLUSIONS_CHECKPOINT_PATH", exclusions_checkpoint
+                ),
+            ):
+                raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows()
+
+        self.assertEqual(
+            [row["observation_id"] for row in raw_rows],
+            ["obs-a", "obs-b"],
+        )
+        self.assertEqual([row["observation_id"] for row in plan_rows], ["obs-a"])
+        self.assertEqual(exclusion_rows, [])
+
+    def test_load_checkpoint_rows_drops_success_without_matching_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            raw_checkpoint = Path(tmpdir) / ".raw.jsonl"
+            plan_checkpoint = Path(tmpdir) / ".plans.jsonl"
+            exclusions_checkpoint = Path(tmpdir) / ".exclusions.jsonl"
+            raw_checkpoint.write_text(
+                '{"run_id":"run-a","run_attempt_id":"obs-a","observation_id":"obs-a","attempt_number":1,"status":"success"}\n'
+            )
+            plan_checkpoint.write_text("")
+            exclusions_checkpoint.write_text("")
+
+            with (
+                patch.object(collection, "RAW_RUNS_CHECKPOINT_PATH", raw_checkpoint),
+                patch.object(collection, "PLANS_CHECKPOINT_PATH", plan_checkpoint),
+                patch.object(
+                    collection, "EXCLUSIONS_CHECKPOINT_PATH", exclusions_checkpoint
+                ),
+            ):
+                raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows()
+
+        self.assertEqual(raw_rows, [])
+        self.assertEqual(plan_rows, [])
+        self.assertEqual(exclusion_rows, [])
+
+    def test_initialize_collection_state_clears_visible_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            raw_path = Path(tmpdir) / "raw_runs.parquet"
+            plans_path = Path(tmpdir) / "plans.jsonl"
+            exclusions_path = Path(tmpdir) / "exclusions.parquet"
+            manifest_path = Path(tmpdir) / "collection_manifest.json"
+            state_path = Path(tmpdir) / ".collection_state.json"
+            checkpoint_paths = [
+                Path(tmpdir) / ".raw_runs.checkpoint.jsonl",
+                Path(tmpdir) / ".plans.checkpoint.jsonl",
+                Path(tmpdir) / ".exclusions.checkpoint.jsonl",
+            ]
+            for path in [
+                raw_path,
+                plans_path,
+                exclusions_path,
+                manifest_path,
+                *checkpoint_paths,
+            ]:
+                path.write_text("stale\n")
+
+            state = {"retry_count": 2}
+            with (
+                patch.object(collection, "RAW_RUNS_PATH", raw_path),
+                patch.object(collection, "PLANS_PATH", plans_path),
+                patch.object(collection, "EXCLUSIONS_PATH", exclusions_path),
+                patch.object(collection, "MANIFEST_PATH", manifest_path),
+                patch.object(collection, "STATE_PATH", state_path),
+                patch.object(
+                    collection, "RAW_RUNS_CHECKPOINT_PATH", checkpoint_paths[0]
+                ),
+                patch.object(collection, "PLANS_CHECKPOINT_PATH", checkpoint_paths[1]),
+                patch.object(
+                    collection, "EXCLUSIONS_CHECKPOINT_PATH", checkpoint_paths[2]
+                ),
+            ):
+                collection.initialize_collection_state(state)
+
+            self.assertFalse(raw_path.exists())
+            self.assertFalse(plans_path.exists())
+            self.assertFalse(exclusions_path.exists())
+            self.assertFalse(manifest_path.exists())
+            self.assertTrue(state_path.exists())
+            self.assertEqual(state_path.read_text(), '{\n  "retry_count": 2\n}\n')
+
+
 if __name__ == "__main__":
     unittest.main()

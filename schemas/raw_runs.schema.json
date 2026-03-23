@@ -6,6 +6,8 @@
   "required": [
     "observation_id",
     "run_attempt_id",
+    "run_id",
+    "run_number",
     "query_instance_id",
     "template_id",
     "parameter_set_id",
@@ -35,6 +37,13 @@
     },
     "run_attempt_id": {
       "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "run_number": {
+      "type": "integer",
+      "minimum": 1
     },
     "query_instance_id": {
       "type": "string"
