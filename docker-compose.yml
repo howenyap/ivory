@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ivory-postgres
+    environment:
+      POSTGRES_USER: ivory
+      POSTGRES_PASSWORD: ivory
+      POSTGRES_DB: postgres
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./artifacts/tpch-data:/tpch-data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivory -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  tpch-dbgen:
+    build:
+      context: .
+      dockerfile: docker/tpch-dbgen/Dockerfile
+      args:
+        TPCH_DBGEN_REPO: https://github.com/electrum/tpch-dbgen.git
+        TPCH_DBGEN_COMMIT: 32f1c1b92d1664dba542e927d23d86ffa57aa253
+    image: ivory/tpch-dbgen:phase-1a
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./artifacts/tpch-data:/tpch-data
+
+volumes:
+  postgres_data:

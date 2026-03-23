@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 
 from ivory.commands import COMMAND_NAMES
+from ivory.commands.collect import register_collect_subparser
 from ivory.config import validate_config
 
 
@@ -16,7 +17,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
+    register_collect_subparser(subparsers)
+
     for command_name in COMMAND_NAMES:
+        if command_name == "collect":
+            continue
         command_parser = subparsers.add_parser(
             command_name,
             help=f"Placeholder command for the {command_name} stage.",

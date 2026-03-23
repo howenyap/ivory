@@ -7,7 +7,9 @@ authors = [
     { name = "howenyap", email = "wenhyap02@gmail.com" }
 ]
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.2.12",
+]
 
 [project.scripts]
 ivory = "ivory:main"

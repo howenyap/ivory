@@ -1,6 +1,6 @@
 [experiment]
-postgresql_version = "16"
 tpch_scale_factors = [0.1, 1.0, 10.0]
+scale_factors = [0.1, 1.0, 10.0]
 query_timeout_seconds = 300
 retry_count = 2
 runs_per_query = 3
@@ -10,6 +10,26 @@ modeling_grain = "successful_observation"
 final_null_handling_policy = "Retain nullable source features, add explicit null indicator fields in the final modeling dataset, and exclude rows only when the observation never produced required targets."
 
 [experiment.scale_factor_databases]
+"0.1" = "tpch_sf_0_1"
+"1.0" = "tpch_sf_1"
+"10.0" = "tpch_sf_10"
+
+[postgres]
+version = "16"
+host = "127.0.0.1"
+port = 55432
+user = "ivory"
+password = "ivory"
+admin_database = "postgres"
+docker_compose_file = "docker-compose.yml"
+docker_service_name = "postgres"
+dbgen_service_name = "tpch-dbgen"
+data_root = "artifacts/tpch-data"
+dbgen_image_tag = "ivory/tpch-dbgen:phase-1a"
+dbgen_repo = "https://github.com/electrum/tpch-dbgen.git"
+dbgen_commit = "32f1c1b92d1664dba542e927d23d86ffa57aa253"
+
+[postgres.scale_factor_databases]
 "0.1" = "tpch_sf_0_1"
 "1.0" = "tpch_sf_1"
 "10.0" = "tpch_sf_10"
