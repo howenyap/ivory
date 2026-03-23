@@ -10,6 +10,8 @@
     "scale_factor",
     "broadcast_to_modeling_grain",
     "feature_status",
+    "aggregation_present",
+    "selected_column_count",
     "table_count",
     "join_count",
     "predicate_count",
@@ -39,6 +41,13 @@
     "feature_status": {
       "type": "string",
       "enum": ["available", "excluded"]
+    },
+    "aggregation_present": {
+      "type": "boolean"
+    },
+    "selected_column_count": {
+      "type": "integer",
+      "minimum": 0
     },
     "table_count": {
       "type": "integer",

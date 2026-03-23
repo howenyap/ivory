@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import ivory.cli as cli
 from ivory.commands import collect as collect_commands
+from ivory.commands import featurize as featurize_commands
 
 
 class CollectCliTests(unittest.TestCase):
@@ -65,6 +66,25 @@ class CollectCliTests(unittest.TestCase):
             cli.main(["collect", "lod-db"])
 
         self.assertEqual(raised.exception.code, 2)
+
+
+class FeaturizeCliTests(unittest.TestCase):
+    def test_featurize_sql_subcommand_dispatches(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_handle_featurize_sql(namespace: argparse.Namespace) -> int:
+            captured["featurize_command"] = namespace.featurize_command
+            return 0
+
+        with patch.object(
+            featurize_commands,
+            "_handle_featurize_sql",
+            side_effect=fake_handle_featurize_sql,
+        ):
+            result = cli.main(["featurize", "sql"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(captured["featurize_command"], "sql")
 
 
 if __name__ == "__main__":

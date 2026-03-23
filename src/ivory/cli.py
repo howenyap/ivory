@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 from ivory.commands import COMMAND_NAMES
 from ivory.commands.collect import COLLECT_DB_COMMANDS, register_collect_subparser
+from ivory.commands.featurize import register_featurize_subparser
 from ivory.config import validate_config
 
 SCALE_FACTOR_TOKEN_PATTERN = re.compile(r"^\d+(?:\.\d+)?$")
@@ -22,9 +23,10 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
     register_collect_subparser(subparsers)
+    register_featurize_subparser(subparsers)
 
     for command_name in COMMAND_NAMES:
-        if command_name == "collect":
+        if command_name in {"collect", "featurize"}:
             continue
         command_parser = subparsers.add_parser(
             command_name,

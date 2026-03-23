@@ -10,6 +10,7 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
     "polars>=1.33.1",
     "psycopg[binary]>=3.2.12",
+    "sqlglot>=30.0.3",
 ]
 
 [project.scripts]
@@ -22,6 +23,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "prek>=0.3.6",
+    "pytest>=9.0.2",
     "ruff>=0.15.7",
     "ty>=0.0.24",
 ]

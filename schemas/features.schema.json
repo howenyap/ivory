@@ -71,6 +71,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "aggregation_present",
+        "selected_column_count",
         "table_count",
         "join_count",
         "predicate_count",
@@ -80,6 +82,12 @@
         "subquery_count"
       ],
       "properties": {
+        "aggregation_present": {
+          "type": ["boolean", "null"]
+        },
+        "selected_column_count": {
+          "type": ["integer", "null"]
+        },
         "table_count": {
           "type": ["integer", "null"]
         },

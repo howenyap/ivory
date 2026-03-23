@@ -23,3 +23,7 @@
 - `Repository maintenance note (2026-03-23)`
   This `AGENTS.md` wording update was made without external research; the change reflects a local workflow preference requested in-session.
   Source: Local repository instruction update request
+
+- `SQLGlot documentation`
+  Useful for the parser and expression-tree API used to extract structural SQL features from PostgreSQL SQL text in Phase 2a.
+  Source: [SQLGlot documentation](https://sqlglot.com/sqlglot.html)
