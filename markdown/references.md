@@ -43,3 +43,7 @@
 - `jsonschema validation documentation`
   Useful for validating the baseline metrics artifact against the frozen Draft 2020-12 JSON schema from the CLI.
   Source: [jsonschema schema validation docs](https://python-jsonschema.readthedocs.io/en/latest/validate/)
+
+- `Repository CLI and setup sources (2026-03-23)`
+  Useful for documenting the currently supported Ivory CLI commands and the local development setup requirements directly from the repository source.
+  Source: Local repository files `pyproject.toml`, `src/ivory/cli.py`, `src/ivory/commands/collect.py`, `src/ivory/commands/featurize.py`, `src/ivory/commands/train.py`, `src/ivory/commands/results.py`, and `src/ivory/commands/validate_metrics.py`
