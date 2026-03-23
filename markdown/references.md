@@ -35,3 +35,11 @@
 - `Polars user guide`
   Useful for the join and nested-struct DataFrame operations used to assemble the final observation-grain modeling dataset in Phase 2c.
   Source: [Polars user guide](https://docs.pola.rs/user-guide/)
+
+- `scikit-learn regression estimator and preprocessing documentation`
+  Useful for the Phase 3a baseline estimator set and preprocessing pipeline, including `DummyRegressor`, `Ridge`, `RandomForestRegressor`, `HistGradientBoostingRegressor`, `Pipeline`, and `StandardScaler`.
+  Source: [scikit-learn API reference](https://scikit-learn.org/stable/modules/classes.html)
+
+- `jsonschema validation documentation`
+  Useful for validating the baseline metrics artifact against the frozen Draft 2020-12 JSON schema from the CLI.
+  Source: [jsonschema schema validation docs](https://python-jsonschema.readthedocs.io/en/latest/validate/)

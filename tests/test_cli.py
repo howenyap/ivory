@@ -9,6 +9,9 @@ from unittest.mock import patch
 import ivory.cli as cli
 from ivory.commands import collect as collect_commands
 from ivory.commands import featurize as featurize_commands
+from ivory.commands import results as results_commands
+from ivory.commands import train as train_commands
+from ivory.commands import validate_metrics as validate_metrics_commands
 
 
 class CollectCliTests(unittest.TestCase):
@@ -102,6 +105,99 @@ class FeaturizeCliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertEqual(captured["featurize_command"], "assemble")
+
+
+class TrainCliTests(unittest.TestCase):
+    def test_train_baseline_subcommand_dispatches(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_handle_train_baseline(namespace: argparse.Namespace) -> int:
+            captured["train_command"] = namespace.train_command
+            captured["seed"] = namespace.seed
+            captured["scale_factor"] = namespace.scale_factor
+            return 0
+
+        with patch.object(
+            train_commands,
+            "_handle_train_baseline",
+            side_effect=fake_handle_train_baseline,
+        ):
+            result = cli.main(
+                ["train", "baseline", "--seed", "123", "--scale-factor", "1.0"]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(captured["train_command"], "baseline")
+        self.assertEqual(captured["seed"], 123)
+        self.assertEqual(captured["scale_factor"], 1.0)
+
+
+class ResultsCliTests(unittest.TestCase):
+    def test_results_baseline_subcommand_dispatches(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_handle_results(namespace: argparse.Namespace) -> int:
+            captured["results_command"] = namespace.results_command
+            captured["metrics_artifact"] = namespace.metrics_artifact
+            captured["manifest_artifact"] = namespace.manifest_artifact
+            return 0
+
+        with patch.object(
+            results_commands,
+            "_handle_results_baseline",
+            side_effect=fake_handle_results,
+        ):
+            result = cli.main(
+                [
+                    "results",
+                    "baseline",
+                    "--metrics-artifact",
+                    "artifacts/models/baseline_metrics.json",
+                    "--manifest-artifact",
+                    "artifacts/models/training_manifest.json",
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(captured["results_command"], "baseline")
+        self.assertEqual(
+            captured["metrics_artifact"], "artifacts/models/baseline_metrics.json"
+        )
+        self.assertEqual(
+            captured["manifest_artifact"], "artifacts/models/training_manifest.json"
+        )
+
+
+class ValidateMetricsCliTests(unittest.TestCase):
+    def test_validate_metrics_baseline_subcommand_dispatches(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_handle_validate(namespace: argparse.Namespace) -> int:
+            captured["validate_metrics_command"] = namespace.validate_metrics_command
+            captured["schema"] = namespace.schema
+            captured["artifact"] = namespace.artifact
+            return 0
+
+        with patch.object(
+            validate_metrics_commands,
+            "_handle_validate_baseline_metrics",
+            side_effect=fake_handle_validate,
+        ):
+            result = cli.main(
+                [
+                    "validate-metrics",
+                    "baseline",
+                    "--schema",
+                    "schemas/baseline_metrics.schema.json",
+                    "--artifact",
+                    "artifacts/models/baseline_metrics.json",
+                ]
+            )
+
+        self.assertEqual(result, 0)
+        self.assertEqual(captured["validate_metrics_command"], "baseline")
+        self.assertEqual(captured["schema"], "schemas/baseline_metrics.schema.json")
+        self.assertEqual(captured["artifact"], "artifacts/models/baseline_metrics.json")
 
 
 if __name__ == "__main__":

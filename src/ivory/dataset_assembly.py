@@ -383,24 +383,22 @@ def validate_features_schema(
         features_schema["properties"]["sql_features"]["required"]
     )
     if sql_feature_field_names != expected_sql_feature_field_names:
-        raise ValueError(
-            "Feature schema field mismatch for sql_features: "
-            "expected="
-            f"{expected_sql_feature_field_names} "
+        detail = (
+            f"expected={expected_sql_feature_field_names} "
             f"actual={sql_feature_field_names}"
         )
+        raise ValueError(f"Feature schema field mismatch for sql_features: {detail}")
 
     plan_feature_field_names = _struct_field_names(features_df.schema["plan_features"])
     expected_plan_feature_field_names = list(
         features_schema["properties"]["plan_features"]["required"]
     )
     if plan_feature_field_names != expected_plan_feature_field_names:
-        raise ValueError(
-            "Feature schema field mismatch for plan_features: "
-            "expected="
-            f"{expected_plan_feature_field_names} "
+        detail = (
+            f"expected={expected_plan_feature_field_names} "
             f"actual={plan_feature_field_names}"
         )
+        raise ValueError(f"Feature schema field mismatch for plan_features: {detail}")
 
 
 def validate_feature_coverage(
