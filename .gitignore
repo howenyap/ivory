@@ -1,4 +1,19 @@
 .venv/
 __pycache__/
 *.py[cod]
+
+# Generated TPC-H data files produced by `collect load-db` / `collect reload-db`.
 artifacts/tpch-data/
+
+# Generated raw collection outputs from `ivory collect`.
+# These are large, machine-local artifacts written under `artifacts/raw/`.
+artifacts/raw/raw_runs.parquet
+artifacts/raw/plans.jsonl
+artifacts/raw/exclusions.parquet
+artifacts/raw/collection_manifest.json
+
+# Generated collection resume/checkpoint state for interrupted runs.
+artifacts/raw/.collection_state.json
+artifacts/raw/.raw_runs.checkpoint.jsonl
+artifacts/raw/.plans.checkpoint.jsonl
+artifacts/raw/.exclusions.checkpoint.jsonl
