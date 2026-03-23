@@ -31,3 +31,7 @@
 - `PostgreSQL EXPLAIN documentation`
   Useful for the shape and semantics of PostgreSQL execution plans, including the JSON output consumed by the Phase 2b plan-feature extractor.
   Source: [PostgreSQL EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html)
+
+- `Polars user guide`
+  Useful for the join and nested-struct DataFrame operations used to assemble the final observation-grain modeling dataset in Phase 2c.
+  Source: [Polars user guide](https://docs.pola.rs/user-guide/)

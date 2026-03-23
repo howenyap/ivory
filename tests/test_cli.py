@@ -86,6 +86,23 @@ class FeaturizeCliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertEqual(captured["featurize_command"], "sql")
 
+    def test_featurize_assemble_subcommand_dispatches(self) -> None:
+        captured: dict[str, object] = {}
+
+        def fake_handle_featurize_assemble(namespace: argparse.Namespace) -> int:
+            captured["featurize_command"] = namespace.featurize_command
+            return 0
+
+        with patch.object(
+            featurize_commands,
+            "_handle_featurize_assemble",
+            side_effect=fake_handle_featurize_assemble,
+        ):
+            result = cli.main(["featurize", "assemble"])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(captured["featurize_command"], "assemble")
+
 
 if __name__ == "__main__":
     unittest.main()

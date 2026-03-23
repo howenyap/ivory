@@ -22,10 +22,51 @@
       "additionalProperties": false,
       "required": [
         "planner_total_cost",
+        "planning_time_ms",
         "execution_time_ms"
       ],
       "properties": {
         "planner_total_cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mae",
+            "rmse",
+            "mape",
+            "q_error_p50",
+            "q_error_p90",
+            "q_error_p95",
+            "q_error_p99",
+            "r2"
+          ],
+          "properties": {
+            "mae": {
+              "type": "number"
+            },
+            "rmse": {
+              "type": "number"
+            },
+            "mape": {
+              "type": "number"
+            },
+            "q_error_p50": {
+              "type": "number"
+            },
+            "q_error_p90": {
+              "type": "number"
+            },
+            "q_error_p95": {
+              "type": "number"
+            },
+            "q_error_p99": {
+              "type": "number"
+            },
+            "r2": {
+              "type": "number"
+            }
+          }
+        },
+        "planning_time_ms": {
           "type": "object",
           "additionalProperties": false,
           "required": [

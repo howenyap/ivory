@@ -35,7 +35,7 @@ REQUIRED_EXPERIMENT_KEYS = (
 )
 REQUIRED_SPLIT_MODES = ("baseline", "grouped")
 REQUIRED_METRIC_GROUPS = ("baseline", "grouped")
-REQUIRED_TARGETS = ("planner_total_cost", "execution_time_ms")
+REQUIRED_TARGETS = ("planner_total_cost", "planning_time_ms", "execution_time_ms")
 REQUIRED_POSTGRES_KEYS = (
     "version",
     "host",

@@ -56,10 +56,14 @@
       "additionalProperties": false,
       "required": [
         "planner_total_cost",
+        "planning_time_ms",
         "execution_time_ms"
       ],
       "properties": {
         "planner_total_cost": {
+          "type": "number"
+        },
+        "planning_time_ms": {
           "type": "number"
         },
         "execution_time_ms": {

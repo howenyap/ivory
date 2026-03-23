@@ -83,5 +83,10 @@
     "excluded_runs": "Represent rows that are intentionally removed from downstream artifacts with run_status set to excluded and exclusion_stage plus exclusion_reason populated.",
     "retried_runs": "Retried runs remain distinct rows with unique run_attempt_id values and is_retry set to true for every attempt after the first.",
     "featurization_exclusions": "Rows excluded because SQL or plan features could not be produced stay in raw_runs and are omitted from features while recording exclusion_stage and exclusion_reason."
+  },
+  "null_policy": {
+    "allowed_nullable_columns": [],
+    "null_indicator_column": "null_indicator_columns",
+    "notes": "Top-level final dataset columns must be non-null. Nullable source-feature fields remain inside nested struct columns and any null leaf values must be recorded in null_indicator_columns."
   }
 }

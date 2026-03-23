@@ -41,6 +41,7 @@ grouped = "template_grouped_holdout"
 [experiment.required_metrics]
 baseline = [
   "planner_total_cost",
+  "planning_time_ms",
   "execution_time_ms",
   "mae",
   "rmse",
@@ -53,6 +54,7 @@ baseline = [
 ]
 grouped = [
   "planner_total_cost",
+  "planning_time_ms",
   "execution_time_ms",
   "mae",
   "rmse",

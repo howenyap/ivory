@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from ivory.dataset_assembly import assemble_feature_dataset
 from ivory.plan_features import featurize_query_plans
 from ivory.sql_features import featurize_sql_queries
 
@@ -35,6 +36,13 @@ def register_featurize_subparser(
     )
     plan_parser.set_defaults(handler=_handle_featurize_plan)
 
+    assemble_parser = featurize_subparsers.add_parser(
+        "assemble",
+        help="Assemble the final observation-grain modeling dataset.",
+        description="Build artifacts/features/features.parquet for phase 2c.",
+    )
+    assemble_parser.set_defaults(handler=_handle_featurize_assemble)
+
 
 def _handle_featurize_sql(_: argparse.Namespace) -> int:
     summary = featurize_sql_queries()
@@ -54,5 +62,16 @@ def _handle_featurize_plan(_: argparse.Namespace) -> int:
         f"observations={summary['input_observations']} "
         f"feature_rows={summary['feature_rows']} "
         f"exclusions={summary['exclusion_rows']}"
+    )
+    return 0
+
+
+def _handle_featurize_assemble(_: argparse.Namespace) -> int:
+    summary = assemble_feature_dataset()
+    print(
+        "Dataset assembly complete: "
+        f"successful_observations={summary['successful_observations']} "
+        f"eligible_observations={summary['eligible_observations']} "
+        f"feature_rows={summary['feature_rows']}"
     )
     return 0
