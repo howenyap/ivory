@@ -47,3 +47,7 @@
 - `Repository CLI and setup sources (2026-03-23)`
   Useful for documenting the currently supported Ivory CLI commands and the local development setup requirements directly from the repository source.
   Source: Local repository files `pyproject.toml`, `src/ivory/cli.py`, `src/ivory/commands/collect.py`, `src/ivory/commands/featurize.py`, `src/ivory/commands/train.py`, `src/ivory/commands/results.py`, and `src/ivory/commands/validate_metrics.py`
+
+- `Repository pipeline dependency check (2026-03-23)`
+  Useful for confirming which downstream stages consume the raw `sf_*` collection artifacts and therefore must be rerun after recollecting scale factor `0.1`.
+  Source: Local repository files `src/ivory/sql_features.py`, `src/ivory/plan_features.py`, `src/ivory/dataset_assembly.py`, `src/ivory/baseline_modeling.py`, and `README.md`
