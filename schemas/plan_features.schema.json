@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "observation_id",
     "query_instance_id",
     "template_id",
     "parameter_set_id",
@@ -15,10 +16,39 @@
     "scan_node_count",
     "aggregate_node_count",
     "sort_node_count",
+    "plan_depth_max",
     "planner_estimated_rows",
-    "planner_total_cost"
+    "planner_estimated_rows_sum",
+    "planner_estimated_rows_max",
+    "planner_estimated_width",
+    "planner_estimated_width_sum",
+    "planner_estimated_width_max",
+    "planner_startup_cost",
+    "planner_startup_cost_sum",
+    "planner_startup_cost_max",
+    "planner_total_cost",
+    "planner_total_cost_sum",
+    "planner_total_cost_max",
+    "node_type_aggregate_count",
+    "node_type_bitmap_heap_scan_count",
+    "node_type_bitmap_index_scan_count",
+    "node_type_cte_scan_count",
+    "node_type_gather_count",
+    "node_type_gather_merge_count",
+    "node_type_hash_count",
+    "node_type_hash_join_count",
+    "node_type_index_only_scan_count",
+    "node_type_index_scan_count",
+    "node_type_limit_count",
+    "node_type_nested_loop_count",
+    "node_type_seq_scan_count",
+    "node_type_sort_count",
+    "other_node_count"
   ],
   "properties": {
+    "observation_id": {
+      "type": "string"
+    },
     "query_instance_id": {
       "type": "string"
     },
@@ -34,7 +64,7 @@
     },
     "broadcast_to_modeling_grain": {
       "type": "boolean",
-      "const": true
+      "const": false
     },
     "feature_status": {
       "type": "string",
@@ -60,11 +90,105 @@
       "type": "integer",
       "minimum": 0
     },
+    "plan_depth_max": {
+      "type": "integer",
+      "minimum": 1
+    },
     "planner_estimated_rows": {
-      "type": ["number", "null"]
+      "type": "number"
+    },
+    "planner_estimated_rows_sum": {
+      "type": "number"
+    },
+    "planner_estimated_rows_max": {
+      "type": "number"
+    },
+    "planner_estimated_width": {
+      "type": "number"
+    },
+    "planner_estimated_width_sum": {
+      "type": "number"
+    },
+    "planner_estimated_width_max": {
+      "type": "number"
+    },
+    "planner_startup_cost": {
+      "type": "number"
+    },
+    "planner_startup_cost_sum": {
+      "type": "number"
+    },
+    "planner_startup_cost_max": {
+      "type": "number"
     },
     "planner_total_cost": {
-      "type": ["number", "null"]
+      "type": "number"
+    },
+    "planner_total_cost_sum": {
+      "type": "number"
+    },
+    "planner_total_cost_max": {
+      "type": "number"
+    },
+    "node_type_aggregate_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_bitmap_heap_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_bitmap_index_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_cte_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_gather_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_gather_merge_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_hash_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_hash_join_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_index_only_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_index_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_limit_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_nested_loop_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_seq_scan_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "node_type_sort_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "other_node_count": {
+      "type": "integer",
+      "minimum": 0
     }
   }
 }

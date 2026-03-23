@@ -13,7 +13,9 @@ The canonical identifiers have fixed meanings across all later phases:
 - `run_attempt_id`: one execution attempt for a query instance, including retries
 - `observation_id`: the row identifier carried through artifacts; in `raw_runs` it matches `run_attempt_id`, and in the final modeling dataset it is the successful attempt identifier
 
-`sql_features` and `plan_features` are query-instance-level artifacts. They are broadcast onto the observation-level final dataset by joining on `query_instance_id`, `template_id`, `parameter_set_id`, and `scale_factor`. Later phases must not invent a second broadcast policy.
+`sql_features` is a query-instance-level artifact. It is broadcast onto the observation-level final dataset by joining on `query_instance_id`, `template_id`, `parameter_set_id`, and `scale_factor`.
+
+`plan_features` is an observation-level artifact derived from PostgreSQL JSON plans. It joins to the final dataset on `observation_id`, so `plan_features_broadcast` is `false` in the final schema while the canonical query identifiers remain available for auditability.
 
 Failure semantics are fixed as follows:
 

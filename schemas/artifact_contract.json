@@ -28,7 +28,7 @@
     "plan_features": {
       "path": "artifacts/features/plan_features.parquet",
       "schema": "schemas/plan_features.schema.json",
-      "grain": "one row per query_instance_id"
+      "grain": "one row per successful observation_id"
     },
     "features": {
       "path": "artifacts/features/features.parquet",
@@ -74,7 +74,7 @@
     ],
     "feature_availability": {
       "sql_features_broadcast_to_successful_observations": true,
-      "plan_features_broadcast_to_successful_observations": true
+      "plan_features_broadcast_to_successful_observations": false
     }
   },
   "failure_semantics": {

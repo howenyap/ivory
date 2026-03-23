@@ -27,3 +27,7 @@
 - `SQLGlot documentation`
   Useful for the parser and expression-tree API used to extract structural SQL features from PostgreSQL SQL text in Phase 2a.
   Source: [SQLGlot documentation](https://sqlglot.com/sqlglot.html)
+
+- `PostgreSQL EXPLAIN documentation`
+  Useful for the shape and semantics of PostgreSQL execution plans, including the JSON output consumed by the Phase 2b plan-feature extractor.
+  Source: [PostgreSQL EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html)

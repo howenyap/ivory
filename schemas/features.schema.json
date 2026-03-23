@@ -43,7 +43,7 @@
     },
     "plan_features_broadcast": {
       "type": "boolean",
-      "const": true
+      "const": false
     },
     "null_indicator_columns": {
       "type": "array",
