@@ -22,14 +22,7 @@ from ivory.postgres import compose_args, database_connection
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 RAW_ARTIFACT_DIR = ROOT_DIR / "artifacts" / "raw"
-RAW_RUNS_PATH = RAW_ARTIFACT_DIR / "raw_runs.parquet"
-PLANS_PATH = RAW_ARTIFACT_DIR / "plans.jsonl"
 MANIFEST_PATH = RAW_ARTIFACT_DIR / "collection_manifest.json"
-EXCLUSIONS_PATH = RAW_ARTIFACT_DIR / "exclusions.parquet"
-RAW_RUNS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".raw_runs.checkpoint.jsonl"
-PLANS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".plans.checkpoint.jsonl"
-EXCLUSIONS_CHECKPOINT_PATH = RAW_ARTIFACT_DIR / ".exclusions.checkpoint.jsonl"
-STATE_PATH = RAW_ARTIFACT_DIR / ".collection_state.json"
 TPCH_TEMPLATE_IDS = tuple(f"q{query_id}" for query_id in range(1, 23))
 DEFAULT_PARAMETER_SETS_PER_TEMPLATE = 50
 STATUS_TO_RUN_STATUS = {
@@ -94,6 +87,20 @@ class QueryKey:
     qgen_seed: int
 
 
+@dataclass(frozen=True)
+class ScaleArtifactPaths:
+    scale_factor: str
+    scale_dir: Path
+    raw_runs_path: Path
+    plans_path: Path
+    exclusions_path: Path
+    manifest_path: Path
+    raw_runs_checkpoint_path: Path
+    plans_checkpoint_path: Path
+    exclusions_checkpoint_path: Path
+    state_path: Path
+
+
 def log_progress(message: str, *, level: str = "info") -> None:
     """Print a flushed progress line for long-running collection work."""
     prefix = f"[{level.upper()}]"
@@ -126,6 +133,28 @@ def format_query_label(
     )
 
 
+def scale_factor_directory_name(scale_factor: str) -> str:
+    """Return the stable raw-artifact directory name for one scale factor."""
+    return f"sf_{scale_factor.replace('.', '_')}"
+
+
+def scale_artifact_paths(scale_factor: str) -> ScaleArtifactPaths:
+    """Return the raw artifact paths for one scale factor."""
+    scale_dir = RAW_ARTIFACT_DIR / scale_factor_directory_name(scale_factor)
+    return ScaleArtifactPaths(
+        scale_factor=scale_factor,
+        scale_dir=scale_dir,
+        raw_runs_path=scale_dir / "raw_runs.parquet",
+        plans_path=scale_dir / "plans.jsonl",
+        exclusions_path=scale_dir / "exclusions.parquet",
+        manifest_path=scale_dir / "collection_manifest.json",
+        raw_runs_checkpoint_path=scale_dir / ".raw_runs.checkpoint.jsonl",
+        plans_checkpoint_path=scale_dir / ".plans.checkpoint.jsonl",
+        exclusions_checkpoint_path=scale_dir / ".exclusions.checkpoint.jsonl",
+        state_path=scale_dir / ".collection_state.json",
+    )
+
+
 def collect_raw_artifacts(
     config: dict[str, Any],
     settings: PostgresConfig,
@@ -134,6 +163,7 @@ def collect_raw_artifacts(
     limit_templates: int | None = None,
     limit_params: int | None = None,
     limit_scales: int | None = None,
+    requested_scales: list[str] | None = None,
     timeout_ms: int | None = None,
     params_per_template: int = DEFAULT_PARAMETER_SETS_PER_TEMPLATE,
     resume: bool = False,
@@ -149,34 +179,15 @@ def collect_raw_artifacts(
         timeout_ms if timeout_ms is not None else configured_timeout_ms
     )
 
-    selected_scales = _select_scales(config, limit_scales)
+    selected_scales = _select_scales(config, limit_scales, requested_scales)
     selected_templates = _select_templates(limit_templates)
     parameter_count = limit_params if limit_params is not None else params_per_template
     RAW_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    state = build_collection_state(
-        config=config,
-        config_path=config_path,
-        selected_scales=selected_scales,
-        selected_templates=selected_templates,
-        timeout_ms=effective_timeout_ms,
-        retry_count=retry_count,
-        params_per_template=parameter_count,
-    )
-    if resume:
-        validate_resume_state(state)
-        raw_rows, plan_rows, exclusion_rows = load_checkpoint_rows()
-    else:
-        initialize_collection_state(state)
-        raw_rows = []
-        plan_rows = []
-        exclusion_rows = []
-
-    existing_attempts_by_run = group_attempt_rows_by_run(raw_rows)
-    completed_run_ids = terminal_run_ids(raw_rows, plan_rows, exclusion_rows)
     total_query_instances = (
         len(selected_scales) * len(selected_templates) * parameter_count
     )
     total_runs = total_query_instances * runs_per_query
+    scale_total_runs = len(selected_templates) * parameter_count * runs_per_query
     log_progress(
         "collection start | "
         f"scales={len(selected_scales)} templates={len(selected_templates)} "
@@ -185,14 +196,86 @@ def collect_raw_artifacts(
         f"resume={'yes' if resume else 'no'} timeout_ms={effective_timeout_ms}",
         level="info",
     )
-    if completed_run_ids:
-        log_progress(
-            "resume state | "
-            f"completed={format_progress(len(completed_run_ids), total_runs)}",
-            level="warning",
-        )
+    if not resume:
+        if requested_scales is None and limit_scales is None:
+            cleanup_all_scale_artifact_dirs()
+        cleanup_aggregate_manifest()
 
+    completed_runs_total = 0
+    scale_manifests: list[dict[str, Any]] = []
     for scale_factor in selected_scales:
+        artifact_paths = scale_artifact_paths(scale_factor)
+        state = build_collection_state(
+            config=config,
+            config_path=config_path,
+            selected_scales=[scale_factor],
+            selected_templates=selected_templates,
+            timeout_ms=effective_timeout_ms,
+            retry_count=retry_count,
+            params_per_template=parameter_count,
+        )
+        if resume and artifact_paths.state_path.exists():
+            validate_resume_state(state, artifact_paths)
+            raw_rows, plan_rows, exclusion_rows = load_checkpoint_rows(artifact_paths)
+        elif resume and artifact_paths.manifest_path.exists():
+            validate_materialized_manifest(state, artifact_paths)
+            raw_rows, plan_rows, exclusion_rows = load_materialized_rows(artifact_paths)
+        elif (
+            not resume
+            and artifact_paths.manifest_path.exists()
+            and materialized_manifest_matches_state(state, artifact_paths)
+        ):
+            raw_rows, plan_rows, exclusion_rows = load_materialized_rows(artifact_paths)
+            completed_run_ids = terminal_run_ids(raw_rows, plan_rows, exclusion_rows)
+            completed_runs_total += len(completed_run_ids)
+            log_progress(
+                f"already collected | sf={scale_factor}",
+                level="success",
+            )
+            scale_manifests.append(json.loads(artifact_paths.manifest_path.read_text()))
+            continue
+        else:
+            initialize_collection_state(state, artifact_paths)
+            raw_rows = []
+            plan_rows = []
+            exclusion_rows = []
+
+        existing_attempts_by_run = group_attempt_rows_by_run(raw_rows)
+        completed_run_ids = terminal_run_ids(raw_rows, plan_rows, exclusion_rows)
+        completed_runs_total += len(completed_run_ids)
+        if completed_run_ids:
+            completed_scale_progress = format_progress(
+                len(completed_run_ids), scale_total_runs
+            )
+            log_progress(
+                "resume state | "
+                f"scale={scale_factor} "
+                f"completed={completed_scale_progress}",
+                level="warning",
+            )
+        if len(completed_run_ids) == scale_total_runs:
+            log_progress(
+                f"scale complete | sf={scale_factor}",
+                level="success",
+            )
+            scale_manifests.append(
+                build_collection_manifest(
+                    config=config,
+                    config_path=config_path,
+                    selected_scales=[scale_factor],
+                    selected_templates=selected_templates,
+                    timeout_ms=effective_timeout_ms,
+                    retry_count=retry_count,
+                    params_per_template=parameter_count,
+                    raw_rows=raw_rows,
+                    plan_rows=plan_rows,
+                    exclusion_rows=exclusion_rows,
+                    artifact_paths=artifact_paths,
+                )
+            )
+            continue
+
+        log_progress(f"scale start | sf={scale_factor}", level="info")
         for template_id in selected_templates:
             for parameter_index in range(parameter_count):
                 query_key = build_query_key(
@@ -218,7 +301,7 @@ def collect_raw_artifacts(
                         "skip instance | "
                         f"{query_label} | "
                         "completed="
-                        f"{format_progress(len(completed_run_ids), total_runs)}",
+                        f"{format_progress(completed_runs_total, total_runs)}",
                         level="warning",
                     )
                     continue
@@ -256,18 +339,23 @@ def collect_raw_artifacts(
                         )
                         if failure_rows:
                             raw_rows.extend(failure_rows)
-                            append_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH, failure_rows)
+                            append_jsonl_rows(
+                                artifact_paths.raw_runs_checkpoint_path,
+                                failure_rows,
+                            )
                             existing_attempts_by_run[run_id] = (
                                 existing_attempt_rows + failure_rows
                             )
                         if exclusion_row is not None:
                             exclusion_rows.append(exclusion_row)
                             append_jsonl_rows(
-                                EXCLUSIONS_CHECKPOINT_PATH, [exclusion_row]
+                                artifact_paths.exclusions_checkpoint_path,
+                                [exclusion_row],
                             )
                             completed_run_ids.add(run_id)
+                            completed_runs_total += 1
                             completed_progress = format_progress(
-                                len(completed_run_ids), total_runs
+                                completed_runs_total, total_runs
                             )
                             log_progress(
                                 "excluded | "
@@ -281,7 +369,7 @@ def collect_raw_artifacts(
                         materialize_collection_artifacts(
                             config=config,
                             config_path=config_path,
-                            selected_scales=selected_scales,
+                            selected_scales=[scale_factor],
                             selected_templates=selected_templates,
                             timeout_ms=effective_timeout_ms,
                             retry_count=retry_count,
@@ -289,6 +377,7 @@ def collect_raw_artifacts(
                             raw_rows=raw_rows,
                             plan_rows=plan_rows,
                             exclusion_rows=exclusion_rows,
+                            artifact_paths=artifact_paths,
                         )
                     continue
                 for run_index in range(runs_per_query):
@@ -297,7 +386,7 @@ def collect_raw_artifacts(
                         continue
                     log_progress(
                         "run | "
-                        f"{format_progress(len(completed_run_ids) + 1, total_runs)} "
+                        f"{format_progress(completed_runs_total + 1, total_runs)} "
                         f"| {template_id} sf={scale_factor} "
                         f"param={parameter_index + 1}/{parameter_count} "
                         f"run={run_index + 1}/{runs_per_query}",
@@ -315,20 +404,30 @@ def collect_raw_artifacts(
                     new_plan_rows = attempts["plan_rows"]
                     if new_raw_rows:
                         raw_rows.extend(new_raw_rows)
-                        append_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH, new_raw_rows)
+                        append_jsonl_rows(
+                            artifact_paths.raw_runs_checkpoint_path,
+                            new_raw_rows,
+                        )
                         existing_attempts_by_run[run_id] = (
                             existing_attempts_by_run.get(run_id, []) + new_raw_rows
                         )
                     if new_plan_rows:
                         plan_rows.extend(new_plan_rows)
-                        append_jsonl_rows(PLANS_CHECKPOINT_PATH, new_plan_rows)
+                        append_jsonl_rows(
+                            artifact_paths.plans_checkpoint_path,
+                            new_plan_rows,
+                        )
                     if attempts["exclusion_row"] is not None:
                         exclusion_row = attempts["exclusion_row"]
                         exclusion_rows.append(exclusion_row)
-                        append_jsonl_rows(EXCLUSIONS_CHECKPOINT_PATH, [exclusion_row])
+                        append_jsonl_rows(
+                            artifact_paths.exclusions_checkpoint_path,
+                            [exclusion_row],
+                        )
                         completed_run_ids.add(run_id)
+                        completed_runs_total += 1
                         completed_progress = format_progress(
-                            len(completed_run_ids), total_runs
+                            completed_runs_total, total_runs
                         )
                         log_progress(
                             "excluded | "
@@ -341,9 +440,10 @@ def collect_raw_artifacts(
                         )
                     elif new_plan_rows:
                         completed_run_ids.add(run_id)
+                        completed_runs_total += 1
                         execution_row = new_raw_rows[-1]
                         completed_progress = format_progress(
-                            len(completed_run_ids), total_runs
+                            completed_runs_total, total_runs
                         )
                         log_progress(
                             "ok | "
@@ -357,7 +457,7 @@ def collect_raw_artifacts(
                     materialize_collection_artifacts(
                         config=config,
                         config_path=config_path,
-                        selected_scales=selected_scales,
+                        selected_scales=[scale_factor],
                         selected_templates=selected_templates,
                         timeout_ms=effective_timeout_ms,
                         retry_count=retry_count,
@@ -365,24 +465,49 @@ def collect_raw_artifacts(
                         raw_rows=raw_rows,
                         plan_rows=plan_rows,
                         exclusion_rows=exclusion_rows,
+                        artifact_paths=artifact_paths,
                     )
+        scale_manifest = materialize_collection_artifacts(
+            config=config,
+            config_path=config_path,
+            selected_scales=[scale_factor],
+            selected_templates=selected_templates,
+            timeout_ms=effective_timeout_ms,
+            retry_count=retry_count,
+            params_per_template=parameter_count,
+            raw_rows=raw_rows,
+            plan_rows=plan_rows,
+            exclusion_rows=exclusion_rows,
+            artifact_paths=artifact_paths,
+        )
+        cleanup_checkpoint_files(artifact_paths)
+        scale_manifests.append(scale_manifest)
 
-    manifest = materialize_collection_artifacts(
+    compatible_scale_manifests = load_compatible_scale_manifests(
         config=config,
         config_path=config_path,
-        selected_scales=selected_scales,
         selected_templates=selected_templates,
         timeout_ms=effective_timeout_ms,
         retry_count=retry_count,
         params_per_template=parameter_count,
-        raw_rows=raw_rows,
-        plan_rows=plan_rows,
-        exclusion_rows=exclusion_rows,
     )
-    cleanup_checkpoint_files()
+    manifest = build_aggregate_collection_manifest(
+        config=config,
+        config_path=config_path,
+        selected_scales=[
+            manifest["scale_factors_included"][0]
+            for manifest in compatible_scale_manifests
+        ],
+        selected_templates=selected_templates,
+        timeout_ms=effective_timeout_ms,
+        retry_count=retry_count,
+        params_per_template=parameter_count,
+        scale_manifests=compatible_scale_manifests,
+    )
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     log_progress(
         "collection finished | "
-        f"completed={format_progress(len(completed_run_ids), total_runs)}",
+        f"completed={format_progress(completed_runs_total, total_runs)}",
         level="success",
     )
     return manifest
@@ -847,6 +972,7 @@ def build_collection_manifest(
     raw_rows: list[dict[str, Any]],
     plan_rows: list[dict[str, Any]],
     exclusion_rows: list[dict[str, Any]],
+    artifact_paths: ScaleArtifactPaths,
 ) -> dict[str, Any]:
     """Build the collection manifest for raw artifacts."""
     successful_observation_ids = [
@@ -866,16 +992,19 @@ def build_collection_manifest(
         "code_revision": git_revision(),
         "artifacts": {
             "raw_runs": {
-                "path": str(RAW_RUNS_PATH.relative_to(ROOT_DIR)),
+                "path": str(artifact_paths.raw_runs_path.relative_to(ROOT_DIR)),
                 "row_count": len(raw_rows),
             },
             "plans": {
-                "path": str(PLANS_PATH.relative_to(ROOT_DIR)),
+                "path": str(artifact_paths.plans_path.relative_to(ROOT_DIR)),
                 "row_count": len(plan_rows),
             },
             "exclusions": {
-                "path": str(EXCLUSIONS_PATH.relative_to(ROOT_DIR)),
+                "path": str(artifact_paths.exclusions_path.relative_to(ROOT_DIR)),
                 "row_count": len(exclusion_rows),
+            },
+            "collection_manifest": {
+                "path": str(artifact_paths.manifest_path.relative_to(ROOT_DIR)),
             },
         },
         "status_counts": status_counts(raw_rows, exclusion_rows),
@@ -890,6 +1019,78 @@ def build_collection_manifest(
                 successful_observation_ids
             )
             == set(plan_observation_ids),
+        },
+    }
+
+
+def build_aggregate_collection_manifest(
+    *,
+    config: dict[str, Any],
+    config_path: str | None,
+    selected_scales: list[str],
+    selected_templates: list[str],
+    timeout_ms: int,
+    retry_count: int,
+    params_per_template: int,
+    scale_manifests: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build the top-level manifest that indexes all per-scale raw artifacts."""
+    successful_raw_rows = sum(
+        manifest["identifier_coverage"]["successful_raw_rows"]
+        for manifest in scale_manifests
+    )
+    plan_rows = sum(
+        manifest["identifier_coverage"]["plan_rows"] for manifest in scale_manifests
+    )
+    raw_row_count = sum(
+        manifest["artifacts"]["raw_runs"]["row_count"] for manifest in scale_manifests
+    )
+    exclusion_row_count = sum(
+        manifest["artifacts"]["exclusions"]["row_count"] for manifest in scale_manifests
+    )
+    status_totals: dict[str, int] = {}
+    for manifest in scale_manifests:
+        for status, count in manifest["status_counts"].items():
+            status_totals[status] = status_totals.get(status, 0) + int(count)
+    return {
+        "collection_timestamp_utc": datetime.now(UTC).isoformat(),
+        "config_path": str((ROOT_DIR / (config_path or DEFAULT_CONFIG_PATH)).resolve()),
+        "config_hash_sha256": config_hash(config_path),
+        "scale_factors_included": selected_scales,
+        "templates_included": selected_templates,
+        "timeout_ms": timeout_ms,
+        "retry_count": retry_count,
+        "runs_per_query": int(config["experiment"]["runs_per_query"]),
+        "parameter_sets_per_template": params_per_template,
+        "code_revision": git_revision(),
+        "artifacts": {
+            "raw_runs": {"row_count": raw_row_count},
+            "plans": {"row_count": plan_rows},
+            "exclusions": {"row_count": exclusion_row_count},
+            "collection_manifest": {"path": str(MANIFEST_PATH.relative_to(ROOT_DIR))},
+        },
+        "scale_factor_artifacts": {
+            manifest["scale_factors_included"][0]: manifest["artifacts"]
+            for manifest in scale_manifests
+        },
+        "status_counts": status_totals,
+        "identifier_coverage": {
+            "successful_raw_rows": successful_raw_rows,
+            "plan_rows": plan_rows,
+            "successful_observation_ids_are_unique": all(
+                manifest["identifier_coverage"]["successful_observation_ids_are_unique"]
+                for manifest in scale_manifests
+            ),
+            "plan_observation_ids_are_unique": all(
+                manifest["identifier_coverage"]["plan_observation_ids_are_unique"]
+                for manifest in scale_manifests
+            ),
+            "successful_observation_ids_match_plan_rows": all(
+                manifest["identifier_coverage"][
+                    "successful_observation_ids_match_plan_rows"
+                ]
+                for manifest in scale_manifests
+            ),
         },
     }
 
@@ -917,13 +1118,16 @@ def build_collection_state(
     }
 
 
-def validate_resume_state(expected_state: dict[str, Any]) -> None:
+def validate_resume_state(
+    expected_state: dict[str, Any], artifact_paths: ScaleArtifactPaths
+) -> None:
     """Validate that checkpoint state matches the requested resume configuration."""
-    if not STATE_PATH.exists():
+    if not artifact_paths.state_path.exists():
         raise FileNotFoundError(
-            f"Cannot resume collection: missing checkpoint state file {STATE_PATH}."
+            "Cannot resume collection: missing checkpoint state file "
+            f"{artifact_paths.state_path}."
         )
-    actual_state = json.loads(STATE_PATH.read_text())
+    actual_state = json.loads(artifact_paths.state_path.read_text())
     if actual_state != expected_state:
         raise ValueError(
             "Cannot resume collection with different settings. "
@@ -931,28 +1135,53 @@ def validate_resume_state(expected_state: dict[str, Any]) -> None:
         )
 
 
-def initialize_collection_state(state: dict[str, Any]) -> None:
+def initialize_collection_state(
+    state: dict[str, Any], artifact_paths: ScaleArtifactPaths
+) -> None:
     """Start a fresh collection run by resetting checkpoint files."""
-    cleanup_checkpoint_files()
-    cleanup_materialized_artifacts()
-    STATE_PATH.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
+    cleanup_checkpoint_files(artifact_paths)
+    cleanup_materialized_artifacts(artifact_paths)
+    artifact_paths.scale_dir.mkdir(parents=True, exist_ok=True)
+    artifact_paths.state_path.write_text(
+        json.dumps(state, indent=2, sort_keys=True) + "\n"
+    )
 
 
-def cleanup_checkpoint_files() -> None:
+def cleanup_checkpoint_files(artifact_paths: ScaleArtifactPaths) -> None:
     """Remove checkpoint files after a successful collection run."""
     for path in (
-        RAW_RUNS_CHECKPOINT_PATH,
-        PLANS_CHECKPOINT_PATH,
-        EXCLUSIONS_CHECKPOINT_PATH,
-        STATE_PATH,
+        artifact_paths.raw_runs_checkpoint_path,
+        artifact_paths.plans_checkpoint_path,
+        artifact_paths.exclusions_checkpoint_path,
+        artifact_paths.state_path,
     ):
         path.unlink(missing_ok=True)
 
 
-def cleanup_materialized_artifacts() -> None:
+def cleanup_materialized_artifacts(artifact_paths: ScaleArtifactPaths) -> None:
     """Remove visible raw artifacts before starting a fresh collection run."""
-    for path in (RAW_RUNS_PATH, PLANS_PATH, EXCLUSIONS_PATH, MANIFEST_PATH):
+    for path in (
+        artifact_paths.raw_runs_path,
+        artifact_paths.plans_path,
+        artifact_paths.exclusions_path,
+        artifact_paths.manifest_path,
+    ):
         path.unlink(missing_ok=True)
+
+
+def cleanup_aggregate_manifest() -> None:
+    """Remove the top-level aggregate manifest before a fresh run."""
+    MANIFEST_PATH.unlink(missing_ok=True)
+
+
+def cleanup_all_scale_artifact_dirs() -> None:
+    """Remove every per-scale raw artifact directory before a fresh run."""
+    for scale_dir in RAW_ARTIFACT_DIR.glob("sf_*"):
+        if not scale_dir.is_dir():
+            continue
+        for path in scale_dir.iterdir():
+            path.unlink(missing_ok=True)
+        scale_dir.rmdir()
 
 
 def config_hash(config_path: str | None) -> str:
@@ -962,15 +1191,109 @@ def config_hash(config_path: str | None) -> str:
     return hashlib.sha256(config_bytes).hexdigest()
 
 
-def load_checkpoint_rows() -> tuple[
-    list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]
-]:
+def load_checkpoint_rows(
+    artifact_paths: ScaleArtifactPaths,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Load checkpointed raw, plan, and exclusion rows."""
-    raw_rows = load_jsonl_rows(RAW_RUNS_CHECKPOINT_PATH)
-    plan_rows = load_jsonl_rows(PLANS_CHECKPOINT_PATH)
-    exclusion_rows = load_jsonl_rows(EXCLUSIONS_CHECKPOINT_PATH)
+    raw_rows = load_jsonl_rows(artifact_paths.raw_runs_checkpoint_path)
+    plan_rows = load_jsonl_rows(artifact_paths.plans_checkpoint_path)
+    exclusion_rows = load_jsonl_rows(artifact_paths.exclusions_checkpoint_path)
     raw_rows, plan_rows = reconcile_checkpoint_rows(raw_rows, plan_rows, exclusion_rows)
     return raw_rows, plan_rows, exclusion_rows
+
+
+def load_materialized_rows(
+    artifact_paths: ScaleArtifactPaths,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Load already-materialized rows for a completed per-scale collection."""
+    raw_rows = (
+        pl.read_parquet(artifact_paths.raw_runs_path).to_dicts()
+        if artifact_paths.raw_runs_path.exists()
+        else []
+    )
+    plan_rows = load_jsonl_rows(artifact_paths.plans_path)
+    exclusion_rows = (
+        pl.read_parquet(artifact_paths.exclusions_path).to_dicts()
+        if artifact_paths.exclusions_path.exists()
+        else []
+    )
+    return raw_rows, plan_rows, exclusion_rows
+
+
+def validate_materialized_manifest(
+    expected_state: dict[str, Any], artifact_paths: ScaleArtifactPaths
+) -> None:
+    """Validate that completed per-scale artifacts match the requested settings."""
+    if not artifact_paths.manifest_path.exists():
+        raise FileNotFoundError(
+            "Cannot resume collection: missing per-scale manifest "
+            f"{artifact_paths.manifest_path}."
+        )
+    manifest = json.loads(artifact_paths.manifest_path.read_text())
+    actual_state = {
+        "config_path": manifest["config_path"],
+        "config_hash_sha256": manifest["config_hash_sha256"],
+        "scale_factors_included": manifest["scale_factors_included"],
+        "templates_included": manifest["templates_included"],
+        "timeout_ms": manifest["timeout_ms"],
+        "retry_count": manifest["retry_count"],
+        "runs_per_query": manifest["runs_per_query"],
+        "parameter_sets_per_template": manifest["parameter_sets_per_template"],
+    }
+    if actual_state != expected_state:
+        raise ValueError(
+            "Cannot resume collection with different settings. "
+            "Materialized scale artifacts do not match the requested config, "
+            "limits, or timeout."
+        )
+    required_paths = (
+        artifact_paths.raw_runs_path,
+        artifact_paths.plans_path,
+        artifact_paths.exclusions_path,
+    )
+    missing_paths = [str(path) for path in required_paths if not path.exists()]
+    if missing_paths:
+        raise ValueError(
+            "Cannot resume collection: materialized scale artifacts are incomplete. "
+            f"Missing files: {', '.join(missing_paths)}."
+        )
+
+    raw_rows, plan_rows, exclusion_rows = load_materialized_rows(artifact_paths)
+    if len(raw_rows) != int(manifest["artifacts"]["raw_runs"]["row_count"]):
+        raise ValueError(
+            "Cannot resume collection: materialized raw row count does not match "
+            "the per-scale manifest."
+        )
+    if len(plan_rows) != int(manifest["artifacts"]["plans"]["row_count"]):
+        raise ValueError(
+            "Cannot resume collection: materialized plan row count does not match "
+            "the per-scale manifest."
+        )
+    if len(exclusion_rows) != int(manifest["artifacts"]["exclusions"]["row_count"]):
+        raise ValueError(
+            "Cannot resume collection: materialized exclusion row count does not "
+            "match the per-scale manifest."
+        )
+    successful_observation_ids = {
+        row["observation_id"] for row in raw_rows if row["status"] == "success"
+    }
+    plan_observation_ids = {row["observation_id"] for row in plan_rows}
+    if successful_observation_ids != plan_observation_ids:
+        raise ValueError(
+            "Cannot resume collection: materialized successful observations do not "
+            "match materialized plan rows."
+        )
+
+
+def materialized_manifest_matches_state(
+    expected_state: dict[str, Any], artifact_paths: ScaleArtifactPaths
+) -> bool:
+    """Return whether a completed per-scale manifest matches the requested settings."""
+    try:
+        validate_materialized_manifest(expected_state, artifact_paths)
+    except FileNotFoundError, ValueError:
+        return False
+    return True
 
 
 def load_jsonl_rows(path: Path) -> list[dict[str, Any]]:
@@ -1075,11 +1398,58 @@ def status_counts(
     return counts
 
 
-def _select_scales(config: dict[str, Any], limit_scales: int | None) -> list[str]:
+def _select_scales(
+    config: dict[str, Any],
+    limit_scales: int | None,
+    requested_scales: list[str] | None = None,
+) -> list[str]:
     scale_factors = experiment_scale_factors(config)
+    if requested_scales is not None:
+        invalid_scales = [
+            scale_factor
+            for scale_factor in requested_scales
+            if scale_factor not in scale_factors
+        ]
+        if invalid_scales:
+            configured = ", ".join(scale_factors)
+            invalid = ", ".join(invalid_scales)
+            raise ValueError(
+                "Unconfigured scale factor(s): "
+                f"{invalid}. Configured scale factors: {configured}."
+            )
+        return requested_scales
     if limit_scales is not None:
         return scale_factors[:limit_scales]
     return scale_factors
+
+
+def load_compatible_scale_manifests(
+    *,
+    config: dict[str, Any],
+    config_path: str | None,
+    selected_templates: list[str],
+    timeout_ms: int,
+    retry_count: int,
+    params_per_template: int,
+) -> list[dict[str, Any]]:
+    """Load per-scale manifests that match the active collection settings."""
+    manifests: list[dict[str, Any]] = []
+    for scale_factor in experiment_scale_factors(config):
+        artifact_paths = scale_artifact_paths(scale_factor)
+        if not artifact_paths.manifest_path.exists():
+            continue
+        expected_state = build_collection_state(
+            config=config,
+            config_path=config_path,
+            selected_scales=[scale_factor],
+            selected_templates=selected_templates,
+            timeout_ms=timeout_ms,
+            retry_count=retry_count,
+            params_per_template=params_per_template,
+        )
+        if materialized_manifest_matches_state(expected_state, artifact_paths):
+            manifests.append(json.loads(artifact_paths.manifest_path.read_text()))
+    return manifests
 
 
 def _select_templates(limit_templates: int | None) -> list[str]:
@@ -1101,13 +1471,15 @@ def materialize_collection_artifacts(
     raw_rows: list[dict[str, Any]],
     plan_rows: list[dict[str, Any]],
     exclusion_rows: list[dict[str, Any]],
+    artifact_paths: ScaleArtifactPaths,
 ) -> dict[str, Any]:
     """Write parquet/json artifacts and the manifest from in-memory rows."""
+    artifact_paths.scale_dir.mkdir(parents=True, exist_ok=True)
     raw_frame = _raw_runs_frame(raw_rows)
     exclusion_frame = _exclusions_frame(exclusion_rows)
-    raw_frame.write_parquet(RAW_RUNS_PATH)
-    exclusion_frame.write_parquet(EXCLUSIONS_PATH)
-    _write_plans(plan_rows)
+    raw_frame.write_parquet(artifact_paths.raw_runs_path)
+    exclusion_frame.write_parquet(artifact_paths.exclusions_path)
+    _write_plans(plan_rows, artifact_paths.plans_path)
     manifest = build_collection_manifest(
         config=config,
         config_path=config_path,
@@ -1119,8 +1491,11 @@ def materialize_collection_artifacts(
         raw_rows=raw_rows,
         plan_rows=plan_rows,
         exclusion_rows=exclusion_rows,
+        artifact_paths=artifact_paths,
     )
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    artifact_paths.manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
     return manifest
 
 
@@ -1190,7 +1565,7 @@ def _exclusions_frame(rows: list[dict[str, Any]]) -> pl.DataFrame:
     return pl.DataFrame(rows, schema=schema, strict=False)
 
 
-def _write_plans(plan_rows: list[dict[str, Any]]) -> None:
-    with PLANS_PATH.open("w", encoding="utf-8") as plan_file:
+def _write_plans(plan_rows: list[dict[str, Any]], path: Path) -> None:
+    with path.open("w", encoding="utf-8") as plan_file:
         for row in plan_rows:
             plan_file.write(json.dumps(row, sort_keys=True) + "\n")

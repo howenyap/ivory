@@ -13,11 +13,11 @@ Extract stable summary features from PostgreSQL JSON execution plans. This phase
 - [`phase-0b-experiment-contract.md`](./phase-0b-experiment-contract.md) is complete.
 - [`phase-1b-query-generation-and-collection.md`](./phase-1b-query-generation-and-collection.md) is complete.
 - `schemas/plan_features.schema.json` is finalized.
-- `artifacts/raw/plans.jsonl` exists and is keyed consistently with raw runs on `observation_id`.
+- `artifacts/raw/sf_*/plans.jsonl` exists and is keyed consistently with raw runs on `observation_id`.
 
 ## Implementation Steps
 
-1. Implement a plan parser that can read `artifacts/raw/plans.jsonl`.
+1. Implement a plan parser that can read every `artifacts/raw/sf_*/plans.jsonl`.
 2. Traverse plan trees recursively and extract at minimum:
    - node-type counts
    - plan depth
@@ -64,7 +64,7 @@ Expected result:
 - row count is greater than zero
 
 ```bash
-uv run python -c "import polars as pl; raw=pl.read_parquet('artifacts/raw/raw_runs.parquet').filter(pl.col('status')=='success').select('observation_id').unique(); feat=pl.read_parquet('artifacts/features/plan_features.parquet').select('observation_id'); excl=pl.read_parquet('artifacts/features/plan_feature_exclusions.parquet').select('observation_id'); feat_ids=set(feat['observation_id'].to_list()); excl_ids=set(excl['observation_id'].to_list()); raw_ids=set(raw['observation_id'].to_list()); assert feat.height == len(feat_ids); assert excl.height == len(excl_ids); assert feat_ids.isdisjoint(excl_ids); assert raw_ids == (feat_ids | excl_ids); print('ok')"
+uv run python -c "import polars as pl; from pathlib import Path; raw=pl.concat([pl.read_parquet(path) for path in sorted(Path('artifacts/raw').glob('sf_*/raw_runs.parquet'))], how='vertical').filter(pl.col('status')=='success').select('observation_id').unique(); feat=pl.read_parquet('artifacts/features/plan_features.parquet').select('observation_id'); excl=pl.read_parquet('artifacts/features/plan_feature_exclusions.parquet').select('observation_id'); feat_ids=set(feat['observation_id'].to_list()); excl_ids=set(excl['observation_id'].to_list()); raw_ids=set(raw['observation_id'].to_list()); assert feat.height == len(feat_ids); assert excl.height == len(excl_ids); assert feat_ids.isdisjoint(excl_ids); assert raw_ids == (feat_ids | excl_ids); print('ok')"
 ```
 
 Expected result:

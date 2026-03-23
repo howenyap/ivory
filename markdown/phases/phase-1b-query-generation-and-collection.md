@@ -38,10 +38,10 @@ Generate parameterized TPC-H query instances, execute them against PostgreSQL wi
    - executes `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`
    - captures raw SQL text, planner cost, planning time, execution time, row counts, and plan JSON
 5. Persist the required raw artifacts:
-   - `artifacts/raw/raw_runs.parquet`
-   - `artifacts/raw/plans.jsonl`
+   - `artifacts/raw/sf_<scale_factor>/raw_runs.parquet`
+   - `artifacts/raw/sf_<scale_factor>/plans.jsonl`
    - `artifacts/raw/collection_manifest.json`
-   - `artifacts/raw/exclusions.parquet`
+   - `artifacts/raw/sf_<scale_factor>/exclusions.parquet`
 6. Implement timeout handling so timed-out queries are logged, not silently dropped.
 7. Implement retry handling with a clear maximum retry count and explicit attempt tracking.
 8. Distinguish between:
@@ -68,10 +68,10 @@ Generate parameterized TPC-H query instances, execute them against PostgreSQL wi
 
 - collection command reachable through `ivory.cli`
 - deterministic query-generation logic
-- `artifacts/raw/raw_runs.parquet`
-- `artifacts/raw/plans.jsonl`
+- `artifacts/raw/sf_<scale_factor>/raw_runs.parquet`
+- `artifacts/raw/sf_<scale_factor>/plans.jsonl`
 - `artifacts/raw/collection_manifest.json`
-- `artifacts/raw/exclusions.parquet`
+- `artifacts/raw/sf_<scale_factor>/exclusions.parquet`
 - documented timeout and retry behavior
 - explicit status and identifier fields matching the Phase `0b` contract
 - raw SQL text persisted in `raw_runs.parquet` for downstream SQL featurization
@@ -89,7 +89,7 @@ Expected result:
 - raw artifacts are created in `artifacts/raw/`
 
 ```bash
-uv run python -c "import polars as pl; df = pl.read_parquet('artifacts/raw/raw_runs.parquet'); assert 'sql_text' in df.columns; assert df.filter(pl.col('status')=='success').select(pl.col('sql_text').is_not_null().all()).item(); print(df.columns, df.height)"
+uv run python -c "import polars as pl; from pathlib import Path; paths=sorted(Path('artifacts/raw').glob('sf_*/raw_runs.parquet')); df=pl.concat([pl.read_parquet(path) for path in paths], how='vertical'); assert 'sql_text' in df.columns; assert df.filter(pl.col('status')=='success').select(pl.col('sql_text').is_not_null().all()).item(); print(df.columns, df.height)"
 ```
 
 Expected result:
@@ -98,14 +98,14 @@ Expected result:
 - row count is greater than zero
 
 ```bash
-uv run python -c "from pathlib import Path; import json; first = Path('artifacts/raw/plans.jsonl').read_text().splitlines()[0]; json.loads(first); print('ok')"
+uv run python -c "from pathlib import Path; import json; first=next(Path('artifacts/raw').glob('sf_*/plans.jsonl')).read_text().splitlines()[0]; json.loads(first); print('ok')"
 ```
 
 Expected result:
 - at least one JSONL plan record parses successfully
 
 ```bash
-uv run python -c "import polars as pl; df=pl.read_parquet('artifacts/raw/exclusions.parquet'); required={'status','failure_reason','attempt_number','is_excluded'}; assert required.issubset(set(df.columns)); print('ok')"
+uv run python -c "import polars as pl; from pathlib import Path; paths=sorted(Path('artifacts/raw').glob('sf_*/exclusions.parquet')); df=pl.concat([pl.read_parquet(path) for path in paths], how='vertical') if paths else pl.DataFrame(schema={'status':pl.String,'failure_reason':pl.String,'attempt_number':pl.Int64,'is_excluded':pl.Boolean}); required={'status','failure_reason','attempt_number','is_excluded'}; assert required.issubset(set(df.columns)); print('ok')"
 ```
 
 Expected result:
@@ -122,7 +122,7 @@ Expected result:
 - the collector does not silently hang
 
 ```bash
-uv run python -c "import polars as pl, json; from pathlib import Path; raw=pl.read_parquet('artifacts/raw/raw_runs.parquet').filter(pl.col('status')=='success'); raw_ids=raw['observation_id'].to_list(); plan_ids=[json.loads(line)['observation_id'] for line in Path('artifacts/raw/plans.jsonl').read_text().splitlines()]; assert len(raw_ids)==len(set(raw_ids)); assert len(plan_ids)==len(set(plan_ids)); assert set(raw_ids)==set(plan_ids); print('ok')"
+uv run python -c "import polars as pl, json; from pathlib import Path; raw_paths=sorted(Path('artifacts/raw').glob('sf_*/raw_runs.parquet')); raw=pl.concat([pl.read_parquet(path) for path in raw_paths], how='vertical').filter(pl.col('status')=='success'); raw_ids=raw['observation_id'].to_list(); plan_ids=[json.loads(line)['observation_id'] for plan_path in sorted(Path('artifacts/raw').glob('sf_*/plans.jsonl')) for line in plan_path.read_text().splitlines() if line.strip()]; assert len(raw_ids)==len(set(raw_ids)); assert len(plan_ids)==len(set(plan_ids)); assert set(raw_ids)==set(plan_ids); print('ok')"
 ```
 
 Expected result:

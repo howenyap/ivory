@@ -1,6 +1,6 @@
 [experiment]
-tpch_scale_factors = [0.1, 1.0, 10.0]
-scale_factors = [0.1, 1.0, 10.0]
+tpch_scale_factors = [0.1, 1.0, 3.0]
+scale_factors = [0.1, 1.0, 3.0]
 query_timeout_seconds = 300
 retry_count = 2
 runs_per_query = 3
@@ -12,7 +12,7 @@ final_null_handling_policy = "Retain nullable source features, add explicit null
 [experiment.scale_factor_databases]
 "0.1" = "tpch_sf_0_1"
 "1.0" = "tpch_sf_1"
-"10.0" = "tpch_sf_10"
+"3.0" = "tpch_sf_3"
 
 [postgres]
 version = "16"
@@ -32,7 +32,7 @@ dbgen_commit = "32f1c1b92d1664dba542e927d23d86ffa57aa253"
 [postgres.scale_factor_databases]
 "0.1" = "tpch_sf_0_1"
 "1.0" = "tpch_sf_1"
-"10.0" = "tpch_sf_10"
+"3.0" = "tpch_sf_3"
 
 [experiment.split_modes]
 baseline = "random_query_instance_split"

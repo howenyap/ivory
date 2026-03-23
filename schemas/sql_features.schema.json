@@ -30,7 +30,7 @@
     },
     "scale_factor": {
       "type": "number",
-      "enum": [0.1, 1.0, 10.0]
+      "enum": [0.1, 1.0, 3.0]
     },
     "broadcast_to_modeling_grain": {
       "type": "boolean",

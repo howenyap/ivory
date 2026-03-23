@@ -5,15 +5,17 @@ __pycache__/
 # Generated TPC-H data files produced by `collect load-db` / `collect reload-db`.
 artifacts/tpch-data/
 
-# Generated raw collection outputs from `ivory collect`.
-# These are large, machine-local artifacts written under `artifacts/raw/`.
+# Persisted raw collection outputs from `ivory collect`.
+# Keep the materialized per-scale artifacts and aggregate manifest trackable so completed
+# collections can be committed instead of being accidentally overwritten or lost.
+
+# Ignore transient checkpoint/state files used only for in-progress/resumable collection runs.
+artifacts/raw/sf_*/.collection_state.json
+artifacts/raw/sf_*/.raw_runs.checkpoint.jsonl
+artifacts/raw/sf_*/.plans.checkpoint.jsonl
+artifacts/raw/sf_*/.exclusions.checkpoint.jsonl
+
+# Legacy top-level raw artifact names kept ignored during migration.
 artifacts/raw/raw_runs.parquet
 artifacts/raw/plans.jsonl
 artifacts/raw/exclusions.parquet
-artifacts/raw/collection_manifest.json
-
-# Generated collection resume/checkpoint state for interrupted runs.
-artifacts/raw/.collection_state.json
-artifacts/raw/.raw_runs.checkpoint.jsonl
-artifacts/raw/.plans.checkpoint.jsonl
-artifacts/raw/.exclusions.checkpoint.jsonl

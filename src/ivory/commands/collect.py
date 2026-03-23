@@ -28,6 +28,17 @@ from ivory.postgres import (
     validate_cache_for_reuse,
 )
 
+COLLECT_DB_COMMANDS = (
+    "start-db",
+    "stop-db",
+    "reset-db",
+    "load-db",
+    "reload-db",
+    "db-health",
+    "db-row-counts",
+    "db-smoke-query",
+)
+
 
 def register_collect_subparser(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
@@ -75,6 +86,16 @@ def register_collect_subparser(
         "--resume",
         action="store_true",
         help="Resume a previously interrupted collection run from checkpoint data.",
+    )
+    collect_parser.add_argument(
+        "--scale-factor",
+        dest="scale_factors",
+        action="append",
+        default=None,
+        help=(
+            "Collect only the specified configured scale factor. "
+            "Repeat to collect multiple specific scale factors."
+        ),
     )
     collect_parser.set_defaults(handler=_handle_collect)
     collect_subparsers = collect_parser.add_subparsers(
@@ -136,16 +157,24 @@ def _load_runtime(args: argparse.Namespace) -> tuple[dict[str, Any], Any]:
 
 def _handle_collect(args: argparse.Namespace) -> int:
     config, settings = _load_runtime(args)
-    manifest = collect_raw_artifacts(
-        config,
-        settings,
-        config_path=args.config,
-        limit_templates=args.limit_templates,
-        limit_params=args.limit_params,
-        limit_scales=args.limit_scales,
-        timeout_ms=args.timeout_ms,
-        resume=args.resume,
-    )
+    if args.scale_factors is not None and args.limit_scales is not None:
+        raise SystemExit(
+            "Use either explicit scale factors or --limit-scales, not both."
+        )
+    try:
+        manifest = collect_raw_artifacts(
+            config,
+            settings,
+            config_path=args.config,
+            limit_templates=args.limit_templates,
+            limit_params=args.limit_params,
+            limit_scales=args.limit_scales,
+            requested_scales=args.scale_factors,
+            timeout_ms=args.timeout_ms,
+            resume=args.resume,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     raw_rows = manifest["artifacts"]["raw_runs"]["row_count"]
     plan_rows = manifest["artifacts"]["plans"]["row_count"]
     exclusion_rows = manifest["artifacts"]["exclusions"]["row_count"]

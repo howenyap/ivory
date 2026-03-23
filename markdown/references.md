@@ -19,3 +19,7 @@
 - `How Good Are Query Optimizers, Really? (Leis et al., PVLDB 2015)`
   Useful for the limitation argument: TPC-H and similar synthetic benchmarks are valuable, but they simplify data distributions and are weaker than more realistic workloads for optimizer-estimation research.
   Source: [How Good Are Query Optimizers, Really?](https://vldb.org/pvldb/vol9/p204-leis.pdf)
+
+- `Repository maintenance note (2026-03-23)`
+  This `AGENTS.md` wording update was made without external research; the change reflects a local workflow preference requested in-session.
+  Source: Local repository instruction update request

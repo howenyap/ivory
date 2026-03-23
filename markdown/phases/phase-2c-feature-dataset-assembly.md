@@ -21,7 +21,7 @@ Join raw collection outputs, SQL structural features, and plan features into the
 1. Implement the final modeling grain explicitly:
    - one row per successful observation, exactly as frozen in Phase `0b`
 2. Load:
-   - `artifacts/raw/raw_runs.parquet`
+   - `artifacts/raw/sf_*/raw_runs.parquet`
    - `artifacts/features/sql_features.parquet`
    - `artifacts/features/sql_feature_exclusions.parquet`
    - `artifacts/features/plan_features.parquet`
@@ -74,7 +74,7 @@ Expected result:
 - no unexpected null spikes appear
 
 ```bash
-uv run python -c "import polars as pl; raw=pl.read_parquet('artifacts/raw/raw_runs.parquet').filter(pl.col('status')=='success').select('observation_id'); feat=pl.read_parquet('artifacts/features/features.parquet').select('observation_id'); raw_ids=raw['observation_id'].to_list(); feat_ids=feat['observation_id'].to_list(); assert len(raw_ids)==len(set(raw_ids)); assert len(feat_ids)==len(set(feat_ids)); assert set(raw_ids)==set(feat_ids); print('ok')"
+uv run python -c "import polars as pl; from pathlib import Path; raw=pl.concat([pl.read_parquet(path) for path in sorted(Path('artifacts/raw').glob('sf_*/raw_runs.parquet'))], how='vertical').filter(pl.col('status')=='success').select('observation_id'); feat=pl.read_parquet('artifacts/features/features.parquet').select('observation_id'); raw_ids=raw['observation_id'].to_list(); feat_ids=feat['observation_id'].to_list(); assert len(raw_ids)==len(set(raw_ids)); assert len(feat_ids)==len(set(feat_ids)); assert set(raw_ids)==set(feat_ids); print('ok')"
 ```
 
 Expected result:

@@ -4,19 +4,20 @@
   "modeling_grain": "successful_observation",
   "artifacts": {
     "raw_runs": {
-      "path": "artifacts/raw/raw_runs.parquet",
+      "path": "artifacts/raw/sf_<scale_factor>/raw_runs.parquet",
       "schema": "schemas/raw_runs.schema.json",
       "grain": "one row per recorded run attempt"
     },
     "plans": {
-      "path": "artifacts/raw/plans.jsonl",
+      "path": "artifacts/raw/sf_<scale_factor>/plans.jsonl",
       "grain": "one row per successful observation_id with detached plan JSON"
     },
     "collection_manifest": {
-      "path": "artifacts/raw/collection_manifest.json"
+      "path": "artifacts/raw/collection_manifest.json",
+      "grain": "top-level aggregate manifest indexing every selected per-scale raw artifact directory"
     },
     "exclusions": {
-      "path": "artifacts/raw/exclusions.parquet",
+      "path": "artifacts/raw/sf_<scale_factor>/exclusions.parquet",
       "grain": "one row per query_instance_id excluded during collection"
     },
     "sql_features": {

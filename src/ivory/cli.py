@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import re
+import sys
 from collections.abc import Sequence
 
 from ivory.commands import COMMAND_NAMES
-from ivory.commands.collect import register_collect_subparser
+from ivory.commands.collect import COLLECT_DB_COMMANDS, register_collect_subparser
 from ivory.config import validate_config
+
+SCALE_FACTOR_TOKEN_PATTERN = re.compile(r"^\d+(?:\.\d+)?$")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -64,7 +68,10 @@ def _handle_validate_config(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
-    args = parser.parse_args(argv)
+    normalized_argv = normalize_collect_argv(
+        list(argv) if argv is not None else list(sys.argv[1:])
+    )
+    args = parser.parse_args(normalized_argv)
 
     handler = getattr(args, "handler", None)
     if handler is None:
@@ -72,6 +79,45 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     return handler(args)
+
+
+def normalize_collect_argv(argv: list[str]) -> list[str]:
+    """Rewrite `collect 1.0` into `collect --scale-factor 1.0`."""
+    if not argv or argv[0] != "collect":
+        return argv
+
+    normalized = [argv[0]]
+    option_with_value = {
+        "--config",
+        "--limit-templates",
+        "--limit-params",
+        "--limit-scales",
+        "--timeout-ms",
+        "--scale-factor",
+    }
+    index = 1
+    while index < len(argv):
+        token = argv[index]
+        if token in option_with_value:
+            normalized.append(token)
+            index += 1
+            if index < len(argv):
+                normalized.append(argv[index])
+            index += 1
+            continue
+        if token.startswith("-"):
+            normalized.append(token)
+            index += 1
+            continue
+        if token in COLLECT_DB_COMMANDS:
+            normalized.extend(argv[index:])
+            break
+        if not SCALE_FACTOR_TOKEN_PATTERN.fullmatch(token):
+            normalized.extend(argv[index:])
+            break
+        normalized.extend(["--scale-factor", token])
+        index += 1
+    return normalized
 
 
 if __name__ == "__main__":

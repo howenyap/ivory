@@ -13,7 +13,7 @@ Extract stable, interpretable structural features from the SQL text of collected
 - [`phase-0b-experiment-contract.md`](./phase-0b-experiment-contract.md) is complete.
 - [`phase-1b-query-generation-and-collection.md`](./phase-1b-query-generation-and-collection.md) is complete.
 - `schemas/sql_features.schema.json` is finalized.
-- `artifacts/raw/raw_runs.parquet` contains canonical query identifiers and raw SQL text.
+- `artifacts/raw/sf_*/raw_runs.parquet` contains canonical query identifiers and raw SQL text.
 - The modeling grain and join-key broadcast rules are already frozen in Phase `0b`.
 
 ## Implementation Steps
@@ -65,7 +65,7 @@ Expected result:
 - row count is consistent with the number of distinct query instances
 
 ```bash
-uv run python -c "import polars as pl; raw=pl.read_parquet('artifacts/raw/raw_runs.parquet').filter(pl.col('status')=='success').select('query_instance_id').unique(); feat=pl.read_parquet('artifacts/features/sql_features.parquet').select('query_instance_id'); excl=pl.read_parquet('artifacts/features/sql_feature_exclusions.parquet').select('query_instance_id'); feat_ids=set(feat['query_instance_id'].to_list()); excl_ids=set(excl['query_instance_id'].to_list()); raw_ids=set(raw['query_instance_id'].to_list()); assert feat.height == len(feat_ids); assert excl.height == len(excl_ids); assert feat_ids.isdisjoint(excl_ids); assert raw_ids == (feat_ids | excl_ids); print('ok')"
+uv run python -c "import polars as pl; from pathlib import Path; raw=pl.concat([pl.read_parquet(path) for path in sorted(Path('artifacts/raw').glob('sf_*/raw_runs.parquet'))], how='vertical').filter(pl.col('status')=='success').select('query_instance_id').unique(); feat=pl.read_parquet('artifacts/features/sql_features.parquet').select('query_instance_id'); excl=pl.read_parquet('artifacts/features/sql_feature_exclusions.parquet').select('query_instance_id'); feat_ids=set(feat['query_instance_id'].to_list()); excl_ids=set(excl['query_instance_id'].to_list()); raw_ids=set(raw['query_instance_id'].to_list()); assert feat.height == len(feat_ids); assert excl.height == len(excl_ids); assert feat_ids.isdisjoint(excl_ids); assert raw_ids == (feat_ids | excl_ids); print('ok')"
 ```
 
 Expected result:

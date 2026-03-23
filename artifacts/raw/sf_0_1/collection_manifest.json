@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "collection_manifest": {
+      "path": "artifacts/raw/sf_0_1/collection_manifest.json"
+    },
+    "exclusions": {
+      "path": "artifacts/raw/sf_0_1/exclusions.parquet",
+      "row_count": 0
+    },
+    "plans": {
+      "path": "artifacts/raw/sf_0_1/plans.jsonl",
+      "row_count": 3
+    },
+    "raw_runs": {
+      "path": "artifacts/raw/sf_0_1/raw_runs.parquet",
+      "row_count": 3
+    }
+  },
+  "code_revision": "0da4f009482809e5b80c5c6f1bdd953db3624680",
+  "collection_timestamp_utc": "2026-03-23T04:14:12.902347+00:00",
+  "config_hash_sha256": "1964c68765cecb52ea81fe191e10b4484fc3b9e37ad378fe78492cc3f0054ef6",
+  "config_path": "/Users/howen/dev/ivory/configs/experiment.toml",
+  "identifier_coverage": {
+    "plan_observation_ids_are_unique": true,
+    "plan_rows": 3,
+    "successful_observation_ids_are_unique": true,
+    "successful_observation_ids_match_plan_rows": true,
+    "successful_raw_rows": 3
+  },
+  "parameter_sets_per_template": 1,
+  "retry_count": 2,
+  "runs_per_query": 3,
+  "scale_factors_included": [
+    "0.1"
+  ],
+  "status_counts": {
+    "excluded": 0,
+    "success": 3
+  },
+  "templates_included": [
+    "q1"
+  ],
+  "timeout_ms": 300000
+}

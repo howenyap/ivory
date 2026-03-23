@@ -56,7 +56,7 @@
     },
     "scale_factor": {
       "type": "number",
-      "enum": [0.1, 1.0, 10.0]
+      "enum": [0.1, 1.0, 3.0]
     },
     "status": {
       "type": "string",

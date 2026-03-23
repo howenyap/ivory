@@ -30,8 +30,12 @@ class ValidateConfigTests(unittest.TestCase):
     def test_postgres_config_uses_frozen_database_targets(self) -> None:
         settings = postgres_config(load_config())
         self.assertEqual(
-            settings.scale_factor_databases["10.0"],
-            "tpch_sf_10",
+            settings.scale_factor_databases,
+            {
+                "0.1": "tpch_sf_0_1",
+                "1.0": "tpch_sf_1",
+                "3.0": "tpch_sf_3",
+            },
         )
 
     def test_docker_compose_pins_match_postgres_contract(self) -> None:

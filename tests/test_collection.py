@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from ivory import collection
-from ivory.collection import AttemptExecution, QueryInstance
+from ivory.collection import AttemptExecution, QueryInstance, ScaleArtifactPaths
 from ivory.config import PostgresConfig
 
 
@@ -40,6 +41,22 @@ def _query_instance() -> QueryInstance:
         parameter_index=0,
         qgen_seed=123,
         sql_text="select 1;\n",
+    )
+
+
+def _artifact_paths(tmpdir: str, scale_factor: str = "0.1") -> ScaleArtifactPaths:
+    scale_dir = Path(tmpdir) / "artifacts/raw" / f"sf_{scale_factor.replace('.', '_')}"
+    return ScaleArtifactPaths(
+        scale_factor=scale_factor,
+        scale_dir=scale_dir,
+        raw_runs_path=scale_dir / "raw_runs.parquet",
+        plans_path=scale_dir / "plans.jsonl",
+        exclusions_path=scale_dir / "exclusions.parquet",
+        manifest_path=scale_dir / "collection_manifest.json",
+        raw_runs_checkpoint_path=scale_dir / ".raw_runs.checkpoint.jsonl",
+        plans_checkpoint_path=scale_dir / ".plans.checkpoint.jsonl",
+        exclusions_checkpoint_path=scale_dir / ".exclusions.checkpoint.jsonl",
+        state_path=scale_dir / ".collection_state.json",
     )
 
 
@@ -199,14 +216,9 @@ class ManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "experiment.toml"
             config_path.write_text("[experiment]\n")
-            raw_runs_path = Path(tmpdir) / "artifacts/raw/raw_runs.parquet"
-            plans_path = Path(tmpdir) / "artifacts/raw/plans.jsonl"
-            exclusions_path = Path(tmpdir) / "artifacts/raw/exclusions.parquet"
+            artifact_paths = _artifact_paths(tmpdir)
             with (
                 patch.object(collection, "ROOT_DIR", Path(tmpdir)),
-                patch.object(collection, "RAW_RUNS_PATH", raw_runs_path),
-                patch.object(collection, "PLANS_PATH", plans_path),
-                patch.object(collection, "EXCLUSIONS_PATH", exclusions_path),
             ):
                 manifest = collection.build_collection_manifest(
                     config=config,
@@ -219,6 +231,7 @@ class ManifestTests(unittest.TestCase):
                     raw_rows=raw_rows,
                     plan_rows=plan_rows,
                     exclusion_rows=exclusions,
+                    artifact_paths=artifact_paths,
                 )
 
         self.assertIn("identifier_coverage", manifest)
@@ -230,6 +243,124 @@ class ManifestTests(unittest.TestCase):
 
 
 class ResumeAndCheckpointTests(unittest.TestCase):
+    def test_select_scales_rejects_unconfigured_scale_factors(self) -> None:
+        config = {
+            "experiment": {
+                "scale_factors": [0.1, 1.0, 3.0],
+                "tpch_scale_factors": [0.1, 1.0, 3.0],
+            }
+        }
+        with self.assertRaisesRegex(ValueError, "Unconfigured scale factor"):
+            collection._select_scales(config, None, ["5.0"])
+
+    def test_load_compatible_scale_manifests_filters_by_requested_settings(
+        self,
+    ) -> None:
+        config = {
+            "experiment": {
+                "scale_factors": [0.1, 1.0],
+                "tpch_scale_factors": [0.1, 1.0],
+                "runs_per_query": 3,
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "configs/experiment.toml"
+            config_path.parent.mkdir(parents=True)
+            config_path.write_text("[experiment]\n")
+            raw_root = Path(tmpdir) / "artifacts/raw"
+            scale_one = _artifact_paths(tmpdir, "0.1")
+            scale_two = _artifact_paths(tmpdir, "1.0")
+            scale_one.scale_dir.mkdir(parents=True)
+            scale_two.scale_dir.mkdir(parents=True)
+            state_one = collection.build_collection_state(
+                config=config,
+                config_path=str(config_path),
+                selected_scales=["0.1"],
+                selected_templates=["q1"],
+                timeout_ms=1000,
+                retry_count=2,
+                params_per_template=50,
+            )
+            state_two = collection.build_collection_state(
+                config=config,
+                config_path=str(config_path),
+                selected_scales=["1.0"],
+                selected_templates=["q1"],
+                timeout_ms=1000,
+                retry_count=2,
+                params_per_template=5,
+            )
+            scale_one.manifest_path.write_text(
+                json.dumps(
+                    {
+                        **state_one,
+                        "collection_timestamp_utc": "now",
+                        "code_revision": None,
+                        "artifacts": {
+                            "raw_runs": {"path": "a", "row_count": 1},
+                            "plans": {"path": "b", "row_count": 1},
+                            "exclusions": {"path": "c", "row_count": 0},
+                            "collection_manifest": {"path": "d"},
+                        },
+                        "status_counts": {"success": 1, "excluded": 0},
+                        "identifier_coverage": {
+                            "successful_raw_rows": 1,
+                            "plan_rows": 1,
+                            "successful_observation_ids_are_unique": True,
+                            "plan_observation_ids_are_unique": True,
+                            "successful_observation_ids_match_plan_rows": True,
+                        },
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+            scale_two.manifest_path.write_text(
+                json.dumps(
+                    {
+                        **state_two,
+                        "collection_timestamp_utc": "now",
+                        "code_revision": None,
+                        "artifacts": {
+                            "raw_runs": {"path": "a", "row_count": 1},
+                            "plans": {"path": "b", "row_count": 1},
+                            "exclusions": {"path": "c", "row_count": 0},
+                            "collection_manifest": {"path": "d"},
+                        },
+                        "status_counts": {"success": 1, "excluded": 0},
+                        "identifier_coverage": {
+                            "successful_raw_rows": 1,
+                            "plan_rows": 1,
+                            "successful_observation_ids_are_unique": True,
+                            "plan_observation_ids_are_unique": True,
+                            "successful_observation_ids_match_plan_rows": True,
+                        },
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+
+            with (
+                patch.object(collection, "ROOT_DIR", Path(tmpdir)),
+                patch.object(collection, "RAW_ARTIFACT_DIR", raw_root),
+            ):
+                manifests = collection.load_compatible_scale_manifests(
+                    config=config,
+                    config_path=str(config_path),
+                    selected_templates=["q1"],
+                    timeout_ms=1000,
+                    retry_count=2,
+                    params_per_template=50,
+                )
+
+        self.assertEqual(
+            [manifest["scale_factors_included"][0] for manifest in manifests],
+            ["0.1"],
+        )
+
     def test_terminal_run_ids_require_matching_plan_for_success(self) -> None:
         raw_rows = [
             {
@@ -308,10 +439,9 @@ class ResumeAndCheckpointTests(unittest.TestCase):
 
     def test_load_checkpoint_rows_discards_orphaned_success_and_plan_rows(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            raw_checkpoint = Path(tmpdir) / ".raw.jsonl"
-            plan_checkpoint = Path(tmpdir) / ".plans.jsonl"
-            exclusions_checkpoint = Path(tmpdir) / ".exclusions.jsonl"
-            raw_checkpoint.write_text(
+            artifact_paths = _artifact_paths(tmpdir)
+            artifact_paths.raw_runs_checkpoint_path.parent.mkdir(parents=True)
+            artifact_paths.raw_runs_checkpoint_path.write_text(
                 "\n".join(
                     [
                         '{"run_id":"run-a","run_attempt_id":"obs-a","observation_id":"obs-a","attempt_number":1,"status":"success"}',
@@ -320,7 +450,7 @@ class ResumeAndCheckpointTests(unittest.TestCase):
                 )
                 + "\n"
             )
-            plan_checkpoint.write_text(
+            artifact_paths.plans_checkpoint_path.write_text(
                 "\n".join(
                     [
                         '{"observation_id":"obs-a"}',
@@ -329,16 +459,11 @@ class ResumeAndCheckpointTests(unittest.TestCase):
                 )
                 + "\n"
             )
-            exclusions_checkpoint.write_text("")
+            artifact_paths.exclusions_checkpoint_path.write_text("")
 
-            with (
-                patch.object(collection, "RAW_RUNS_CHECKPOINT_PATH", raw_checkpoint),
-                patch.object(collection, "PLANS_CHECKPOINT_PATH", plan_checkpoint),
-                patch.object(
-                    collection, "EXCLUSIONS_CHECKPOINT_PATH", exclusions_checkpoint
-                ),
-            ):
-                raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows()
+            raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows(
+                artifact_paths
+            )
 
         self.assertEqual(
             [row["observation_id"] for row in raw_rows],
@@ -349,23 +474,17 @@ class ResumeAndCheckpointTests(unittest.TestCase):
 
     def test_load_checkpoint_rows_drops_success_without_matching_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            raw_checkpoint = Path(tmpdir) / ".raw.jsonl"
-            plan_checkpoint = Path(tmpdir) / ".plans.jsonl"
-            exclusions_checkpoint = Path(tmpdir) / ".exclusions.jsonl"
-            raw_checkpoint.write_text(
+            artifact_paths = _artifact_paths(tmpdir)
+            artifact_paths.raw_runs_checkpoint_path.parent.mkdir(parents=True)
+            artifact_paths.raw_runs_checkpoint_path.write_text(
                 '{"run_id":"run-a","run_attempt_id":"obs-a","observation_id":"obs-a","attempt_number":1,"status":"success"}\n'
             )
-            plan_checkpoint.write_text("")
-            exclusions_checkpoint.write_text("")
+            artifact_paths.plans_checkpoint_path.write_text("")
+            artifact_paths.exclusions_checkpoint_path.write_text("")
 
-            with (
-                patch.object(collection, "RAW_RUNS_CHECKPOINT_PATH", raw_checkpoint),
-                patch.object(collection, "PLANS_CHECKPOINT_PATH", plan_checkpoint),
-                patch.object(
-                    collection, "EXCLUSIONS_CHECKPOINT_PATH", exclusions_checkpoint
-                ),
-            ):
-                raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows()
+            raw_rows, plan_rows, exclusion_rows = collection.load_checkpoint_rows(
+                artifact_paths
+            )
 
         self.assertEqual(raw_rows, [])
         self.assertEqual(plan_rows, [])
@@ -373,48 +492,134 @@ class ResumeAndCheckpointTests(unittest.TestCase):
 
     def test_initialize_collection_state_clears_visible_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            raw_path = Path(tmpdir) / "raw_runs.parquet"
-            plans_path = Path(tmpdir) / "plans.jsonl"
-            exclusions_path = Path(tmpdir) / "exclusions.parquet"
-            manifest_path = Path(tmpdir) / "collection_manifest.json"
-            state_path = Path(tmpdir) / ".collection_state.json"
-            checkpoint_paths = [
-                Path(tmpdir) / ".raw_runs.checkpoint.jsonl",
-                Path(tmpdir) / ".plans.checkpoint.jsonl",
-                Path(tmpdir) / ".exclusions.checkpoint.jsonl",
-            ]
+            artifact_paths = _artifact_paths(tmpdir)
+            artifact_paths.scale_dir.mkdir(parents=True)
             for path in [
-                raw_path,
-                plans_path,
-                exclusions_path,
-                manifest_path,
-                *checkpoint_paths,
+                artifact_paths.raw_runs_path,
+                artifact_paths.plans_path,
+                artifact_paths.exclusions_path,
+                artifact_paths.manifest_path,
+                artifact_paths.state_path,
+                artifact_paths.raw_runs_checkpoint_path,
+                artifact_paths.plans_checkpoint_path,
+                artifact_paths.exclusions_checkpoint_path,
             ]:
                 path.write_text("stale\n")
 
             state = {"retry_count": 2}
-            with (
-                patch.object(collection, "RAW_RUNS_PATH", raw_path),
-                patch.object(collection, "PLANS_PATH", plans_path),
-                patch.object(collection, "EXCLUSIONS_PATH", exclusions_path),
-                patch.object(collection, "MANIFEST_PATH", manifest_path),
-                patch.object(collection, "STATE_PATH", state_path),
-                patch.object(
-                    collection, "RAW_RUNS_CHECKPOINT_PATH", checkpoint_paths[0]
-                ),
-                patch.object(collection, "PLANS_CHECKPOINT_PATH", checkpoint_paths[1]),
-                patch.object(
-                    collection, "EXCLUSIONS_CHECKPOINT_PATH", checkpoint_paths[2]
-                ),
-            ):
-                collection.initialize_collection_state(state)
+            collection.initialize_collection_state(state, artifact_paths)
 
-            self.assertFalse(raw_path.exists())
-            self.assertFalse(plans_path.exists())
-            self.assertFalse(exclusions_path.exists())
-            self.assertFalse(manifest_path.exists())
-            self.assertTrue(state_path.exists())
-            self.assertEqual(state_path.read_text(), '{\n  "retry_count": 2\n}\n')
+            self.assertFalse(artifact_paths.raw_runs_path.exists())
+            self.assertFalse(artifact_paths.plans_path.exists())
+            self.assertFalse(artifact_paths.exclusions_path.exists())
+            self.assertFalse(artifact_paths.manifest_path.exists())
+            self.assertTrue(artifact_paths.state_path.exists())
+            self.assertEqual(
+                artifact_paths.state_path.read_text(),
+                '{\n  "retry_count": 2\n}\n',
+            )
+
+    def test_cleanup_all_scale_artifact_dirs_removes_stale_scale_directories(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            raw_root = Path(tmpdir) / "artifacts/raw"
+            stale_one = raw_root / "sf_0_1"
+            stale_two = raw_root / "sf_1_0"
+            stale_one.mkdir(parents=True)
+            stale_two.mkdir(parents=True)
+            (stale_one / "raw_runs.parquet").write_text("stale\n")
+            (stale_two / "plans.jsonl").write_text("stale\n")
+
+            with patch.object(collection, "RAW_ARTIFACT_DIR", raw_root):
+                collection.cleanup_all_scale_artifact_dirs()
+
+            self.assertFalse(stale_one.exists())
+            self.assertFalse(stale_two.exists())
+
+    def test_validate_materialized_manifest_rejects_mismatched_resume_settings(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact_paths = _artifact_paths(tmpdir)
+            artifact_paths.scale_dir.mkdir(parents=True)
+            expected_state = {
+                "config_path": "/tmp/experiment.toml",
+                "config_hash_sha256": "expected",
+                "scale_factors_included": ["0.1"],
+                "templates_included": ["q1"],
+                "timeout_ms": 1000,
+                "retry_count": 2,
+                "runs_per_query": 3,
+                "parameter_sets_per_template": 1,
+            }
+            artifact_paths.manifest_path.write_text(
+                "{"
+                '"config_path":"/tmp/experiment.toml",'
+                '"config_hash_sha256":"different",'
+                '"scale_factors_included":["0.1"],'
+                '"templates_included":["q1"],'
+                '"timeout_ms":1000,'
+                '"retry_count":2,'
+                '"runs_per_query":3,'
+                '"parameter_sets_per_template":1'
+                "}\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "Materialized scale artifacts"):
+                collection.validate_materialized_manifest(
+                    expected_state,
+                    artifact_paths,
+                )
+
+    def test_validate_materialized_manifest_rejects_missing_materialized_files(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact_paths = _artifact_paths(tmpdir)
+            artifact_paths.scale_dir.mkdir(parents=True)
+            expected_state = {
+                "config_path": "/tmp/experiment.toml",
+                "config_hash_sha256": "expected",
+                "scale_factors_included": ["0.1"],
+                "templates_included": ["q1"],
+                "timeout_ms": 1000,
+                "retry_count": 2,
+                "runs_per_query": 3,
+                "parameter_sets_per_template": 1,
+            }
+            artifact_paths.manifest_path.write_text(
+                "{"
+                '"config_path":"/tmp/experiment.toml",'
+                '"config_hash_sha256":"expected",'
+                '"scale_factors_included":["0.1"],'
+                '"templates_included":["q1"],'
+                '"timeout_ms":1000,'
+                '"retry_count":2,'
+                '"runs_per_query":3,'
+                '"parameter_sets_per_template":1,'
+                '"artifacts":{'
+                '"raw_runs":{"path":"raw","row_count":1},'
+                '"plans":{"path":"plans","row_count":1},'
+                '"exclusions":{"path":"exclusions","row_count":0},'
+                '"collection_manifest":{"path":"manifest"}'
+                "},"
+                '"status_counts":{"success":1,"excluded":0},'
+                '"identifier_coverage":{'
+                '"successful_raw_rows":1,'
+                '"plan_rows":1,'
+                '"successful_observation_ids_are_unique":true,'
+                '"plan_observation_ids_are_unique":true,'
+                '"successful_observation_ids_match_plan_rows":true'
+                "}"
+                "}\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "Missing files"):
+                collection.validate_materialized_manifest(
+                    expected_state,
+                    artifact_paths,
+                )
 
 
 if __name__ == "__main__":

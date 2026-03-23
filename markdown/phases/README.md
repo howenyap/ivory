@@ -53,10 +53,22 @@ The guides assume this high-level layout once the project is implemented:
 ```text
 artifacts/
   raw/
-    raw_runs.parquet
-    plans.jsonl
     collection_manifest.json
-    exclusions.parquet
+    sf_0_1/
+      raw_runs.parquet
+      plans.jsonl
+      exclusions.parquet
+      collection_manifest.json
+    sf_1_0/
+      raw_runs.parquet
+      plans.jsonl
+      exclusions.parquet
+      collection_manifest.json
+    sf_3_0/
+      raw_runs.parquet
+      plans.jsonl
+      exclusions.parquet
+      collection_manifest.json
   features/
     sql_features.parquet
     sql_feature_exclusions.parquet
