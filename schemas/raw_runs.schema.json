@@ -10,6 +10,10 @@
     "template_id",
     "parameter_set_id",
     "scale_factor",
+    "status",
+    "failure_reason",
+    "attempt_number",
+    "is_excluded",
     "attempt_index",
     "is_retry",
     "run_status",
@@ -17,8 +21,11 @@
     "exclusion_stage",
     "exclusion_reason",
     "planner_total_cost",
+    "planning_time_ms",
     "execution_time_ms",
     "wall_clock_runtime_ms",
+    "row_count",
+    "sql_text",
     "error_class",
     "error_message"
   ],
@@ -41,6 +48,20 @@
     "scale_factor": {
       "type": "number",
       "enum": [0.1, 1.0, 10.0]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed", "timed_out", "excluded"]
+    },
+    "failure_reason": {
+      "type": ["string", "null"]
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "is_excluded": {
+      "type": "boolean"
     },
     "attempt_index": {
       "type": "integer",
@@ -66,11 +87,20 @@
     "planner_total_cost": {
       "type": ["number", "null"]
     },
+    "planning_time_ms": {
+      "type": ["number", "null"]
+    },
     "execution_time_ms": {
       "type": ["number", "null"]
     },
     "wall_clock_runtime_ms": {
       "type": ["number", "null"]
+    },
+    "row_count": {
+      "type": ["integer", "null"]
+    },
+    "sql_text": {
+      "type": "string"
     },
     "error_class": {
       "type": ["string", "null"]

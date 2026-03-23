@@ -1,0 +1,42 @@
+{
+  "artifacts": {
+    "exclusions": {
+      "path": "artifacts/raw/exclusions.parquet",
+      "row_count": 0
+    },
+    "plans": {
+      "path": "artifacts/raw/plans.jsonl",
+      "row_count": 18
+    },
+    "raw_runs": {
+      "path": "artifacts/raw/raw_runs.parquet",
+      "row_count": 18
+    }
+  },
+  "code_revision": "c45f2bba05611e19df5a13f1faee0e1565a86477",
+  "collection_timestamp_utc": "2026-03-23T01:28:23.198617+00:00",
+  "config_hash_sha256": "96a7358c50459e0210bc587daf8e91bfafb85e0cceb981f997a06470dd8db035",
+  "config_path": "/Users/howen/dev/ivory/configs/experiment.toml",
+  "identifier_coverage": {
+    "plan_observation_ids_are_unique": true,
+    "plan_rows": 18,
+    "successful_observation_ids_are_unique": true,
+    "successful_observation_ids_match_plan_rows": true,
+    "successful_raw_rows": 18
+  },
+  "parameter_sets_per_template": 3,
+  "retry_count": 2,
+  "runs_per_query": 3,
+  "scale_factors_included": [
+    "0.1"
+  ],
+  "status_counts": {
+    "excluded": 0,
+    "success": 18
+  },
+  "templates_included": [
+    "q1",
+    "q2"
+  ],
+  "timeout_ms": 300000
+}

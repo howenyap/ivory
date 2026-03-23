@@ -1,10 +1,11 @@
-"""Collect-stage commands for PostgreSQL setup and smoke checks."""
+"""Collect-stage commands for PostgreSQL setup and raw collection."""
 
 from __future__ import annotations
 
 import argparse
 from typing import Any
 
+from ivory.collection import collect_raw_artifacts
 from ivory.config import experiment_scale_factors, load_config
 from ivory.postgres import (
     TPCH_TABLES,
@@ -31,9 +32,39 @@ def register_collect_subparser(
     """Register the collect command tree."""
     collect_parser = subparsers.add_parser(
         "collect",
-        help="Manage the PostgreSQL TPC-H environment and run smoke checks.",
-        description="Project-managed PostgreSQL setup and verification commands.",
+        help="Run raw collection or manage the PostgreSQL benchmark environment.",
+        description="Project-managed raw collection plus PostgreSQL setup commands.",
     )
+    collect_parser.add_argument(
+        "--config",
+        default=None,
+        help="Path to a TOML experiment config. Defaults to configs/experiment.toml.",
+    )
+    collect_parser.add_argument(
+        "--limit-templates",
+        type=int,
+        default=None,
+        help="Limit collection to the first N TPC-H templates.",
+    )
+    collect_parser.add_argument(
+        "--limit-params",
+        type=int,
+        default=None,
+        help="Limit collection to the first N parameter sets per template.",
+    )
+    collect_parser.add_argument(
+        "--limit-scales",
+        type=int,
+        default=None,
+        help="Limit collection to the first N configured scale factors.",
+    )
+    collect_parser.add_argument(
+        "--timeout-ms",
+        type=int,
+        default=None,
+        help="Override the query statement timeout in milliseconds.",
+    )
+    collect_parser.set_defaults(handler=_handle_collect)
     collect_subparsers = collect_parser.add_subparsers(
         dest="collect_command", metavar="collect-command"
     )
@@ -89,6 +120,27 @@ def _load_runtime(args: argparse.Namespace) -> tuple[dict[str, Any], Any]:
     config = load_config(args.config)
     settings = project_postgres_config(config)
     return config, settings
+
+
+def _handle_collect(args: argparse.Namespace) -> int:
+    config, settings = _load_runtime(args)
+    manifest = collect_raw_artifacts(
+        config,
+        settings,
+        config_path=args.config,
+        limit_templates=args.limit_templates,
+        limit_params=args.limit_params,
+        limit_scales=args.limit_scales,
+        timeout_ms=args.timeout_ms,
+    )
+    raw_rows = manifest["artifacts"]["raw_runs"]["row_count"]
+    plan_rows = manifest["artifacts"]["plans"]["row_count"]
+    exclusion_rows = manifest["artifacts"]["exclusions"]["row_count"]
+    print(
+        "Collection complete: "
+        f"raw_rows={raw_rows} plan_rows={plan_rows} exclusions={exclusion_rows}"
+    )
+    return 0
 
 
 def _handle_start_db(args: argparse.Namespace) -> int:

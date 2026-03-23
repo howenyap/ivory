@@ -4,22 +4,33 @@
   "modeling_grain": "successful_observation",
   "artifacts": {
     "raw_runs": {
-      "path": "artifacts/collection/raw_runs.jsonl",
+      "path": "artifacts/raw/raw_runs.parquet",
       "schema": "schemas/raw_runs.schema.json",
       "grain": "one row per recorded run attempt"
     },
+    "plans": {
+      "path": "artifacts/raw/plans.jsonl",
+      "grain": "one row per successful observation_id with detached plan JSON"
+    },
+    "collection_manifest": {
+      "path": "artifacts/raw/collection_manifest.json"
+    },
+    "exclusions": {
+      "path": "artifacts/raw/exclusions.parquet",
+      "grain": "one row per query_instance_id excluded during collection"
+    },
     "sql_features": {
-      "path": "artifacts/features/sql_features.jsonl",
+      "path": "artifacts/features/sql_features.parquet",
       "schema": "schemas/sql_features.schema.json",
       "grain": "one row per query_instance_id"
     },
     "plan_features": {
-      "path": "artifacts/features/plan_features.jsonl",
+      "path": "artifacts/features/plan_features.parquet",
       "schema": "schemas/plan_features.schema.json",
       "grain": "one row per query_instance_id"
     },
     "features": {
-      "path": "artifacts/features/features.jsonl",
+      "path": "artifacts/features/features.parquet",
       "schema": "schemas/features.schema.json",
       "grain": "one row per successful observation_id"
     },
@@ -41,6 +52,12 @@
     "observation_id": "Stable identifier for a recorded run row. In raw runs it equals run_attempt_id; in final features it remains the successful attempt identifier."
   },
   "status_fields": {
+    "status": [
+      "success",
+      "failed",
+      "timed_out",
+      "excluded"
+    ],
     "run_status": [
       "succeeded",
       "failed",
