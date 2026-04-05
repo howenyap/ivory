@@ -1,0 +1,16 @@
+{
+  "artifact_checks": {
+    "collect": "artifacts/raw/collection_manifest.json",
+    "evaluate": "artifacts/evaluation/grouped_metrics.json",
+    "featurize": "artifacts/features/features.parquet",
+    "report_assets": "artifacts/report/full_rerun_manifest.json",
+    "train": "artifacts/models/training_manifest.json"
+  },
+  "stages": {
+    "collect": "completed",
+    "evaluate": "completed",
+    "featurize": "completed",
+    "report_assets": "completed",
+    "train": "completed"
+  }
+}

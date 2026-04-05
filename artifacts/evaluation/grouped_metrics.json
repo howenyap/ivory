@@ -1,0 +1,66 @@
+{
+  "artifact_path": "artifacts/evaluation/grouped_metrics.json",
+  "grouped_split": {
+    "group_key": "template_id",
+    "split_hash": "73e91460e599db46d764deb289ac860b27c5345e1fa4340323108979ad9516bf",
+    "split_mode": "template_grouped_holdout",
+    "test_groups": [
+      "q13",
+      "q18",
+      "q3",
+      "q4"
+    ],
+    "train_groups": [
+      "q1",
+      "q10",
+      "q11",
+      "q12",
+      "q14",
+      "q15",
+      "q16",
+      "q17",
+      "q19",
+      "q2",
+      "q20",
+      "q21",
+      "q22",
+      "q5",
+      "q6",
+      "q7",
+      "q8",
+      "q9"
+    ]
+  },
+  "targets": {
+    "execution_time_ms": {
+      "group_support": 22,
+      "mae": 298.6064911820969,
+      "mape": 0.9532861281536708,
+      "q_error_p50": 2.2912368229510167,
+      "q_error_p90": 3.3244159244835947,
+      "q_error_p95": 3.483554803172834,
+      "q_error_p99": 3.9347865251776852,
+      "rmse": 389.00592764809005
+    },
+    "planner_total_cost": {
+      "group_support": 22,
+      "mae": 101433.01615140354,
+      "mape": 1.3162727261469744,
+      "q_error_p50": 1.879509854879154,
+      "q_error_p90": 6.1345027336150615,
+      "q_error_p95": 6.141695374512048,
+      "q_error_p99": 6.148928657951532,
+      "rmse": 130704.55887173177
+    },
+    "planning_time_ms": {
+      "group_support": 22,
+      "mae": 0.9221699611648223,
+      "mape": 0.9163151428064025,
+      "q_error_p50": 1.9364699659941542,
+      "q_error_p90": 3.3742047442548904,
+      "q_error_p95": 4.0478884209237105,
+      "q_error_p99": 4.551346527881937,
+      "rmse": 1.2805157545309644
+    }
+  }
+}

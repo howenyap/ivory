@@ -10,6 +10,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import polars as pl
 from jsonschema import Draft202012Validator
 from sklearn.dummy import DummyRegressor
@@ -423,38 +424,44 @@ def train_target_models(
 
     train_validation_df = pl.concat([train_df, validation_df], how="vertical")
     x_train = to_feature_matrix(train_df, feature_columns)
-    y_train = to_target_vector(train_df, target_name)
+    y_train = transform_target(to_target_vector(train_df, target_name), target_name)
     x_validation = to_feature_matrix(validation_df, feature_columns)
-    y_validation = to_target_vector(validation_df, target_name)
+    y_validation_raw = to_target_vector(validation_df, target_name)
     x_train_validation = to_feature_matrix(train_validation_df, feature_columns)
-    y_train_validation = to_target_vector(train_validation_df, target_name)
+    y_train_validation = transform_target(
+        to_target_vector(train_validation_df, target_name), target_name
+    )
     x_test = to_feature_matrix(test_df, feature_columns)
-    y_test = to_target_vector(test_df, target_name)
+    y_test_raw = to_target_vector(test_df, target_name)
 
     family_results: dict[str, dict[str, Any]] = {}
     final_estimators: dict[str, Any] = {}
     predictions_rows: list[dict[str, Any]] = []
     for model_family, estimator in build_model_family_estimators(seed).items():
         estimator.fit(x_train, y_train)
-        validation_predictions = estimator.predict(x_validation)
+        validation_predictions_raw = inverse_transform_target(
+            estimator.predict(x_validation), target_name
+        )
         validation_metrics = compute_regression_metrics(
-            y_true=y_validation,
-            y_pred=validation_predictions,
+            y_true=y_validation_raw,
+            y_pred=validation_predictions_raw,
         )
         supplemental_validation_metrics = compute_supplemental_metrics(
-            y_true=y_validation,
-            y_pred=validation_predictions,
+            y_true=y_validation_raw,
+            y_pred=validation_predictions_raw,
             target_name=target_name,
         )
 
         final_estimator = build_model_family_estimators(seed)[model_family]
         final_estimator.fit(x_train_validation, y_train_validation)
-        test_predictions = final_estimator.predict(x_test)
+        test_predictions = inverse_transform_target(
+            final_estimator.predict(x_test), target_name
+        )
         test_metrics = compute_regression_metrics(
-            y_true=y_test, y_pred=test_predictions
+            y_true=y_test_raw, y_pred=test_predictions
         )
         supplemental_test_metrics = compute_supplemental_metrics(
-            y_true=y_test,
+            y_true=y_test_raw,
             y_pred=test_predictions,
             target_name=target_name,
         )
@@ -471,7 +478,7 @@ def train_target_models(
                 test_df=test_df,
                 target_name=target_name,
                 model_family=model_family,
-                actual_values=y_test,
+                actual_values=y_test_raw,
                 predicted_values=test_predictions,
             )
         )
@@ -494,6 +501,7 @@ def build_model_family_estimators(seed: int) -> dict[str, Any]:
         ),
         "random_forest": RandomForestRegressor(
             n_estimators=200,
+            min_samples_leaf=5,
             random_state=seed,
             n_jobs=1,
         ),
@@ -521,6 +529,9 @@ def select_model_family(family_results: dict[str, dict[str, Any]]) -> str:
     return ordered[0][0]
 
 
+LOG_TRANSFORMED_TARGETS = frozenset({"execution_time_ms"})
+
+
 def to_feature_matrix(df: pl.DataFrame, feature_columns: list[str]) -> Any:
     """Convert a Polars frame into a NumPy feature matrix."""
     return df.select(feature_columns).to_numpy()
@@ -529,6 +540,20 @@ def to_feature_matrix(df: pl.DataFrame, feature_columns: list[str]) -> Any:
 def to_target_vector(df: pl.DataFrame, target_name: str) -> Any:
     """Convert a target column into a NumPy vector."""
     return df[target_name].to_numpy()
+
+
+def transform_target(y: Any, target_name: str) -> Any:
+    """Apply log1p transform for targets that benefit from it."""
+    if target_name in LOG_TRANSFORMED_TARGETS:
+        return np.log1p(np.maximum(y, 0.0))
+    return y
+
+
+def inverse_transform_target(y: Any, target_name: str) -> Any:
+    """Invert the target transform to return predictions to original space."""
+    if target_name in LOG_TRANSFORMED_TARGETS:
+        return np.maximum(np.expm1(y), 0.0)
+    return y
 
 
 def compute_regression_metrics(*, y_true: Any, y_pred: Any) -> dict[str, float]:
