@@ -23,6 +23,9 @@
         "test_groups"
       ],
       "properties": {
+        "split_hash": {
+          "type": "string"
+        },
         "split_mode": {
           "type": "string",
           "const": "template_grouped_holdout"

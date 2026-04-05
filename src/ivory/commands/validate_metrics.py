@@ -39,8 +39,32 @@ def register_validate_metrics_subparser(
     )
     baseline_parser.set_defaults(handler=_handle_validate_baseline_metrics)
 
+    grouped_parser = validate_subparsers.add_parser(
+        "grouped",
+        help="Validate the grouped metrics artifact.",
+        description="Validate artifacts/evaluation/grouped_metrics.json.",
+    )
+    grouped_parser.add_argument(
+        "--schema",
+        required=True,
+        help="Path to the JSON schema to validate against.",
+    )
+    grouped_parser.add_argument(
+        "--artifact",
+        required=True,
+        help="Path to the metrics artifact JSON file.",
+    )
+    grouped_parser.set_defaults(handler=_handle_validate_grouped_metrics)
+
 
 def _handle_validate_baseline_metrics(args: argparse.Namespace) -> int:
+    artifact = json.loads(Path(args.artifact).read_text())
+    validate_metrics_artifact(artifact=artifact, schema_path=args.schema)
+    print("Metrics validation succeeded.")
+    return 0
+
+
+def _handle_validate_grouped_metrics(args: argparse.Namespace) -> int:
     artifact = json.loads(Path(args.artifact).read_text())
     validate_metrics_artifact(artifact=artifact, schema_path=args.schema)
     print("Metrics validation succeeded.")
