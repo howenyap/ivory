@@ -309,9 +309,9 @@ prediction.}
 \textbf{Q-err\,p50} & \textbf{$R^2$} \\
 \midrule
 \multirow{4}{*}{\shortstack[l]{Exec.\ time\\(ms)}}
-  & SQL only  & 97.30   & 39.07   & 1.063 & 0.953 \\
-  & Plan only & 88.75   & 39.09   & 1.057 & 0.961 \\
-  & Combined  & 88.73   & 39.05   & 1.058 & 0.961 \\
+  & SQL only  & 97.75   & 37.03   & 1.054 & 0.953 \\
+  & Plan only & 88.89   & 36.86   & 1.055 & 0.961 \\
+  & Combined  & 89.99   & 37.21   & 1.056 & 0.960 \\
   & PG proxy  & 207,202 & 152,988 & 382.6 & $-$213,290 \\
 \midrule
 \multirow{3}{*}{\shortstack[l]{Planner\\cost}}
@@ -335,18 +335,18 @@ prediction.}
   \label{fig:ablation}
 \end{figure}
 
-Plan features dominate: plan-only achieves RMSE\,=\,88.75 vs.\ 97.30 for
-SQL-only (9.6\% better), and adding SQL features to plan features gives
-negligible further gain (88.73).
-The query plan already encodes join structure, predicate selectivity
-estimates, and aggregation layout, so once it is available, raw SQL
-adds little.
+Plan features dominate: plan-only achieves RMSE\,=\,88.89 vs.\ 97.75 for
+SQL-only (9.1\% better).
+Adding SQL features to the plan produces no gain---combined RMSE\,=\,89.99
+is marginally worse than plan-only, consistent with SQL features being
+largely redundant once the plan is available: the plan already encodes
+join structure, predicate selectivity estimates, and aggregation layout.
 For planning time, all three feature subsets perform identically
 ($R^2 \approx 0.45$): the ceiling is due to target noise, not feature
 inadequacy.
 The PostgreSQL cost proxy (q-err\,p50\,$=382.6\times$) is catastrophically
 worse than even the weakest learned model (SQL-only,
-q-err\,p50\,$=1.063\times$)---a three-order-of-magnitude gap between planner
+q-err\,p50\,$=1.054\times$)---a three-order-of-magnitude gap between planner
 cost and actual runtime.
 
 \subsection{Error Analysis by Template}
@@ -360,12 +360,13 @@ cost and actual runtime.
 \end{figure}
 
 Figure~\ref{fig:template_error} shows Q18 is the hardest template (median
-q-error $3.66\times$, max $6.79\times$).
+q-error $2.94\times$, max $5.45\times$).
 Q18 contains a \texttt{HAVING COUNT(*) > 300} predicate over a large
 hash aggregation; its execution time varies sharply with parameter values
 in ways 50 training samples cannot capture.
-Q3 and Q4 are moderately hard (${\approx}1.6$--$1.8\times$); Q13 is
-mostly easy with a long tail (max $2.61\times$).
+Q3 is moderately hard ($1.83\times$); Q4 and Q13 are easier
+($1.24\times$ and $1.68\times$ respectively), though Q13 has a longer
+tail (max $3.66\times$).
 Hard templates fail consistently across folds, not randomly.
 
 \subsection{Discussion}

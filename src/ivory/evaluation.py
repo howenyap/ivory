@@ -18,10 +18,12 @@ from ivory.baseline_modeling import (
     determine_constant_feature_columns,
     determine_target_exclusions,
     flatten_modeling_dataset,
+    inverse_transform_target,
     load_modeling_dataset,
     q_error,
     to_feature_matrix,
     to_target_vector,
+    transform_target,
     validate_metrics_artifact,
 )
 from ivory.collection import log_progress
@@ -85,7 +87,6 @@ def run_grouped_evaluation(*, seed: int | None = None) -> dict[str, Any]:
             model_family = selected_families.get(target_name, "hist_gradient_boosting")
             estimator = build_model_family_estimators(training_seed)[model_family]
 
-            from ivory.baseline_modeling import transform_target, inverse_transform_target
             x_train = to_feature_matrix(train_df, feature_columns)
             y_train = transform_target(to_target_vector(train_df, target_name), target_name)
             x_test = to_feature_matrix(test_df, feature_columns)
@@ -330,12 +331,12 @@ def _run_ablation_feature_set(
         estimators = build_model_family_estimators(seed)
         estimator = estimators["hist_gradient_boosting"]
         x_train = to_feature_matrix(train_df, cols)
-        y_train = to_target_vector(train_df, target_name)
+        y_train = transform_target(to_target_vector(train_df, target_name), target_name)
         x_test = to_feature_matrix(test_df, cols)
-        y_test = to_target_vector(test_df, target_name)
+        y_test_raw = to_target_vector(test_df, target_name)
         estimator.fit(x_train, y_train)
-        y_pred = estimator.predict(x_test)
-        results[target_name] = compute_regression_metrics(y_true=y_test, y_pred=y_pred)
+        y_pred = inverse_transform_target(estimator.predict(x_test), target_name)
+        results[target_name] = compute_regression_metrics(y_true=y_test_raw, y_pred=y_pred)
     return results
 
 
@@ -488,19 +489,19 @@ def run_error_analysis(*, seed: int | None = None) -> dict[str, Any]:
         estimator = build_model_family_estimators(training_seed)[model_family]
 
         x_train = to_feature_matrix(train_df, feature_columns)
-        y_train = to_target_vector(train_df, target_name)
+        y_train = transform_target(to_target_vector(train_df, target_name), target_name)
         x_test = to_feature_matrix(test_df, feature_columns)
-        y_test = to_target_vector(test_df, target_name)
+        y_test_raw = to_target_vector(test_df, target_name)
 
         estimator.fit(x_train, y_train)
-        y_pred = estimator.predict(x_test)
+        y_pred = inverse_transform_target(estimator.predict(x_test), target_name)
 
         error_rows.extend(
             _build_error_rows(
                 test_df=test_df,
                 target_name=target_name,
                 model_family=model_family,
-                y_true=y_test,
+                y_true=y_test_raw,
                 y_pred=y_pred,
             )
         )
