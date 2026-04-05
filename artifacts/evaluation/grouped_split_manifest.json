@@ -1,0 +1,184 @@
+{
+  "counts": {
+    "folds": 5,
+    "test_templates_per_fold": 4,
+    "total_templates": 22
+  },
+  "cv_method": "5_fold_template_cv",
+  "folds": [
+    {
+      "fold": 0,
+      "test_template_ids": [
+        "q13",
+        "q18",
+        "q3",
+        "q4"
+      ],
+      "train_template_ids": [
+        "q1",
+        "q10",
+        "q11",
+        "q12",
+        "q14",
+        "q15",
+        "q16",
+        "q17",
+        "q19",
+        "q2",
+        "q20",
+        "q21",
+        "q22",
+        "q5",
+        "q6",
+        "q7",
+        "q8",
+        "q9"
+      ]
+    },
+    {
+      "fold": 1,
+      "test_template_ids": [
+        "q1",
+        "q16",
+        "q19",
+        "q6"
+      ],
+      "train_template_ids": [
+        "q10",
+        "q11",
+        "q12",
+        "q13",
+        "q14",
+        "q15",
+        "q17",
+        "q18",
+        "q2",
+        "q20",
+        "q21",
+        "q22",
+        "q3",
+        "q4",
+        "q5",
+        "q7",
+        "q8",
+        "q9"
+      ]
+    },
+    {
+      "fold": 2,
+      "test_template_ids": [
+        "q11",
+        "q14",
+        "q5",
+        "q8"
+      ],
+      "train_template_ids": [
+        "q1",
+        "q10",
+        "q12",
+        "q13",
+        "q15",
+        "q16",
+        "q17",
+        "q18",
+        "q19",
+        "q2",
+        "q20",
+        "q21",
+        "q22",
+        "q3",
+        "q4",
+        "q6",
+        "q7",
+        "q9"
+      ]
+    },
+    {
+      "fold": 3,
+      "test_template_ids": [
+        "q15",
+        "q21",
+        "q22",
+        "q7"
+      ],
+      "train_template_ids": [
+        "q1",
+        "q10",
+        "q11",
+        "q12",
+        "q13",
+        "q14",
+        "q16",
+        "q17",
+        "q18",
+        "q19",
+        "q2",
+        "q20",
+        "q3",
+        "q4",
+        "q5",
+        "q6",
+        "q8",
+        "q9"
+      ]
+    },
+    {
+      "fold": 4,
+      "test_template_ids": [
+        "q10",
+        "q12",
+        "q17",
+        "q2",
+        "q20",
+        "q9"
+      ],
+      "train_template_ids": [
+        "q1",
+        "q11",
+        "q13",
+        "q14",
+        "q15",
+        "q16",
+        "q18",
+        "q19",
+        "q21",
+        "q22",
+        "q3",
+        "q4",
+        "q5",
+        "q6",
+        "q7",
+        "q8"
+      ]
+    }
+  ],
+  "group_key": "template_id",
+  "seed": 20260322,
+  "split_hash": "73e91460e599db46d764deb289ac860b27c5345e1fa4340323108979ad9516bf",
+  "test_template_ids": [
+    "q13",
+    "q18",
+    "q3",
+    "q4"
+  ],
+  "train_template_ids": [
+    "q1",
+    "q10",
+    "q11",
+    "q12",
+    "q14",
+    "q15",
+    "q16",
+    "q17",
+    "q19",
+    "q2",
+    "q20",
+    "q21",
+    "q22",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9"
+  ]
+}

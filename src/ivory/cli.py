@@ -9,7 +9,9 @@ from collections.abc import Sequence
 
 from ivory.commands import COMMAND_NAMES
 from ivory.commands.collect import COLLECT_DB_COMMANDS, register_collect_subparser
+from ivory.commands.evaluate import register_evaluate_subparser
 from ivory.commands.featurize import register_featurize_subparser
+from ivory.commands.report_assets import register_report_assets_subparser
 from ivory.commands.results import register_results_subparser
 from ivory.commands.train import register_train_subparser
 from ivory.commands.validate_metrics import register_validate_metrics_subparser
@@ -26,13 +28,15 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
     register_collect_subparser(subparsers)
+    register_evaluate_subparser(subparsers)
     register_featurize_subparser(subparsers)
+    register_report_assets_subparser(subparsers)
     register_results_subparser(subparsers)
     register_train_subparser(subparsers)
     register_validate_metrics_subparser(subparsers)
 
     for command_name in COMMAND_NAMES:
-        if command_name in {"collect", "featurize", "train"}:
+        if command_name in {"collect", "evaluate", "featurize", "report-assets", "train"}:
             continue
         command_parser = subparsers.add_parser(
             command_name,

@@ -31,10 +31,10 @@ Top-level commands currently exposed by the CLI:
 - `featurize`
 - `train`
 - `results`
+- `evaluate`
+- `report-assets`
 - `validate-config`
 - `validate-metrics`
-- `evaluate` (placeholder, not implemented)
-- `report-assets` (placeholder, not implemented)
 
 `collect` offers both raw artifact collection and PostgreSQL environment management:
 
@@ -61,9 +61,22 @@ Top-level commands currently exposed by the CLI:
 
 - `results baseline`
 
+`evaluate` offers:
+
+- `evaluate grouped`
+- `evaluate ablations`
+- `evaluate error-analysis`
+
+`report-assets` offers:
+
+- `report-assets build`
+- `report-assets verify`
+- `report-assets full-rerun-check`
+
 `validate-metrics` offers:
 
 - `validate-metrics baseline`
+- `validate-metrics grouped`
 
 ## Common commands
 
@@ -125,11 +138,28 @@ uv run ivory train baseline
 uv run ivory results baseline
 ```
 
+Run grouped evaluation, ablations, and error analysis:
+
+```bash
+uv run ivory evaluate grouped
+uv run ivory evaluate ablations
+uv run ivory evaluate error-analysis
+```
+
+Generate report figures and tables:
+
+```bash
+uv run ivory report-assets build
+uv run ivory report-assets verify
+uv run ivory report-assets full-rerun-check
+```
+
 Validate configuration and metrics artifacts:
 
 ```bash
 uv run ivory validate-config
-uv run ivory validate-metrics baseline --schema path/to/schema.json --artifact path/to/artifact.json
+uv run ivory validate-metrics baseline --schema schemas/baseline_metrics.schema.json --artifact artifacts/models/baseline_metrics.json
+uv run ivory validate-metrics grouped --schema schemas/grouped_metrics.schema.json --artifact artifacts/evaluation/grouped_metrics.json
 ```
 
 ## TPC-H data generation
