@@ -31,7 +31,8 @@ On a random split, our best model achieves $R^2 = 0.958$ and median
 q-error $1.056\times$ for execution time, versus $382.6\times$ for
 PostgreSQL's own cost proxy.
 Under 5-fold template-grouped cross-validation, q-error rises to
-$2.29\times$, revealing a meaningful generalisation gap.
+$2.29\times$, which exposes a generalisation gap between seen and unseen
+query structures.
 Plan features dominate; SQL features add marginal value.
 Planning time is the hardest target ($R^2 = 0.45$) due to measurement
 noise at sub-millisecond granularity.
@@ -47,9 +48,9 @@ prediction~\cite{postgresql}.
 Using it directly as a latency predictor yields median q-error
 $382.6\times$ in our experiments.
 
-Machine learning provides a data-driven alternative: train regressors on
-queries executed with \texttt{EXPLAIN (ANALYZE, FORMAT JSON)} and learn
-the mapping from query features to observed performance.
+An alternative is to train regressors on queries executed with
+\texttt{EXPLAIN (ANALYZE, FORMAT JSON)} and predict performance from
+query and plan features directly.
 Prior work achieves strong results~\cite{marcus2019,zhao2022} but
 typically uses deep learning on tens of thousands of queries and focuses
 on a single target.
@@ -73,8 +74,8 @@ Running \texttt{EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)} exposes three
 targets: (i)~\emph{planner total cost} (unitless, used for plan
 selection), (ii)~\emph{planning time} (ms, time to generate the plan),
 and (iii)~\emph{execution time} (ms, actual wall-clock query runtime).
-These have very different characteristics and, as we show, different
-degrees of learnability.
+These three targets differ in scale, variance, and how well they can be
+predicted from structural features.
 
 \subsection{TPC-H Benchmark}
 
@@ -118,10 +119,10 @@ QueryFormer~\cite{zhao2022} applies a plan-tree transformer and notes
 TPC-H is ``comparatively simple'' relative to real workloads, motivating
 our template-grouped generalisation test.
 
-Compared to these, we (i) predict three targets jointly rather than
-execution time alone, (ii) use classical ML suited to our dataset size,
-and (iii) explicitly measure the template-grouped generalisation gap,
-which prior TPC-H studies typically omit.
+Our work differs in three ways: we predict three targets jointly rather
+than execution time alone, we use classical ML suited to our dataset
+size, and we measure the template-grouped generalisation gap, which
+prior TPC-H studies typically omit.
 
 %------------------------------------------------------------------------------
 \section{Methodology}
@@ -337,8 +338,9 @@ prediction.}
 Plan features dominate: plan-only achieves RMSE\,=\,88.75 vs.\ 97.30 for
 SQL-only (9.6\% better), and adding SQL features to plan features gives
 negligible further gain (88.73).
-The query plan already encodes most structural SQL properties---once the
-execution strategy is known, raw SQL adds little.
+The query plan already encodes join structure, predicate selectivity
+estimates, and aggregation layout, so once it is available, raw SQL
+adds little.
 For planning time, all three feature subsets perform identically
 ($R^2 \approx 0.45$): the ceiling is due to target noise, not feature
 inadequacy.
@@ -364,19 +366,20 @@ hash aggregation; its execution time varies sharply with parameter values
 in ways 50 training samples cannot capture.
 Q3 and Q4 are moderately hard (${\approx}1.6$--$1.8\times$); Q13 is
 mostly easy with a long tail (max $2.61\times$).
-Hard templates fail consistently, not randomly: the pattern is structural.
+Hard templates fail consistently across folds, not randomly.
 
 \subsection{Discussion}
 
 Plan features subsume SQL features because the plan is produced after SQL
 parsing and already encodes join depth, aggregation structure, and
 predicate complexity.
-Planning time is noisy at sub-millisecond scales: CPU scheduling and cache
-state add more variance than query structure does, so no feature set can
-close this gap.
-Q18's failure stems from parameter-sensitive selectivity: the number of
-qualifying \texttt{HAVING} groups is non-linearly related to parameter
-values and cannot be inferred from structural features alone.
+For planning time, the low $R^2$ reflects measurement noise: at
+sub-millisecond scales, CPU scheduling and cache state add more variance
+than query structure does, and no feature set can close this gap.
+The Q18 difficulty is different in kind. Its \texttt{HAVING COUNT(*) > 300}
+clause makes execution time depend on how many groups survive the
+predicate, which varies non-linearly with parameter values and cannot be
+recovered from plan structure alone.
 
 %------------------------------------------------------------------------------
 \section{Conclusion}
@@ -389,8 +392,8 @@ orders of magnitude over PostgreSQL's cost proxy (q-err\,p50:
 $1.056\times$ vs.\ $382.6\times$); (ii) planner cost is near-perfectly
 predicted ($R^2=0.999$), planning time is noise-limited ($R^2=0.45$);
 (iii) plan features alone provide essentially all signal; and (iv)
-template-grouped CV ($2.29\times$) gives a more honest estimate of
-deployment performance than the random split ($1.056\times$).
+template-grouped CV ($2.29\times$) better reflects expected accuracy on
+unseen query structures than the random split ($1.056\times$).
 
 Limitations include a single scale factor (SF~1.0) and TPC-H's 22
 fixed templates, which are structurally simpler than real
