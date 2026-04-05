@@ -1,0 +1,279 @@
+{
+  "Execution Time": 525.692,
+  "Plan": {
+    "Actual Loops": 1,
+    "Actual Rows": 42,
+    "Actual Startup Time": 523.345,
+    "Actual Total Time": 525.035,
+    "Async Capable": false,
+    "Node Type": "Sort",
+    "Parallel Aware": false,
+    "Plan Rows": 200,
+    "Plan Width": 16,
+    "Plans": [
+      {
+        "Actual Loops": 1,
+        "Actual Rows": 42,
+        "Actual Startup Time": 523.32,
+        "Actual Total Time": 525.027,
+        "Async Capable": false,
+        "Group Key": [
+          "(COALESCE(coc.c_count, '0'::bigint))"
+        ],
+        "Node Type": "Aggregate",
+        "Parallel Aware": false,
+        "Parent Relationship": "Outer",
+        "Partial Mode": "Finalize",
+        "Plan Rows": 200,
+        "Plan Width": 16,
+        "Plans": [
+          {
+            "Actual Loops": 1,
+            "Actual Rows": 121,
+            "Actual Startup Time": 523.318,
+            "Actual Total Time": 525.017,
+            "Async Capable": false,
+            "Node Type": "Gather Merge",
+            "Parallel Aware": false,
+            "Parent Relationship": "Outer",
+            "Plan Rows": 400,
+            "Plan Width": 16,
+            "Plans": [
+              {
+                "Actual Loops": 3,
+                "Actual Rows": 40,
+                "Actual Startup Time": 522.248,
+                "Actual Total Time": 522.251,
+                "Async Capable": false,
+                "Node Type": "Sort",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Plan Rows": 200,
+                "Plan Width": 16,
+                "Plans": [
+                  {
+                    "Actual Loops": 3,
+                    "Actual Rows": 40,
+                    "Actual Startup Time": 522.23,
+                    "Actual Total Time": 522.235,
+                    "Async Capable": false,
+                    "Disk Usage": 0,
+                    "Group Key": [
+                      "COALESCE(coc.c_count, '0'::bigint)"
+                    ],
+                    "HashAgg Batches": 1,
+                    "Node Type": "Aggregate",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Partial Mode": "Partial",
+                    "Peak Memory Usage": 40,
+                    "Plan Rows": 200,
+                    "Plan Width": 16,
+                    "Planned Partitions": 0,
+                    "Plans": [
+                      {
+                        "Actual Loops": 3,
+                        "Actual Rows": 50000,
+                        "Actual Startup Time": 509.012,
+                        "Actual Total Time": 519.582,
+                        "Async Capable": false,
+                        "Hash Cond": "(c.c_custkey = coc.o_custkey)",
+                        "Inner Unique": true,
+                        "Join Type": "Left",
+                        "Node Type": "Hash Join",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Outer",
+                        "Plan Rows": 62500,
+                        "Plan Width": 8,
+                        "Plans": [
+                          {
+                            "Actual Loops": 3,
+                            "Actual Rows": 50000,
+                            "Actual Startup Time": 0.013,
+                            "Actual Total Time": 2.522,
+                            "Alias": "c",
+                            "Async Capable": false,
+                            "Heap Fetches": 0,
+                            "Index Name": "pk_customer",
+                            "Node Type": "Index Only Scan",
+                            "Parallel Aware": true,
+                            "Parent Relationship": "Outer",
+                            "Plan Rows": 62500,
+                            "Plan Width": 4,
+                            "Relation Name": "customer",
+                            "Scan Direction": "Forward",
+                            "Startup Cost": 0.42,
+                            "Total Cost": 3041.44,
+                            "Workers": []
+                          },
+                          {
+                            "Actual Loops": 3,
+                            "Actual Rows": 99996,
+                            "Actual Startup Time": 508.836,
+                            "Actual Total Time": 508.837,
+                            "Async Capable": false,
+                            "Hash Batches": 1,
+                            "Hash Buckets": 131072,
+                            "Node Type": "Hash",
+                            "Original Hash Batches": 1,
+                            "Original Hash Buckets": 131072,
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Inner",
+                            "Peak Memory Usage": 5321,
+                            "Plan Rows": 86641,
+                            "Plan Width": 12,
+                            "Plans": [
+                              {
+                                "Actual Loops": 3,
+                                "Actual Rows": 99996,
+                                "Actual Startup Time": 474.138,
+                                "Actual Total Time": 501.91,
+                                "Alias": "coc",
+                                "Async Capable": false,
+                                "Node Type": "Subquery Scan",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Outer",
+                                "Plan Rows": 86641,
+                                "Plan Width": 12,
+                                "Plans": [
+                                  {
+                                    "Actual Loops": 3,
+                                    "Actual Rows": 99996,
+                                    "Actual Startup Time": 474.138,
+                                    "Actual Total Time": 497.85,
+                                    "Async Capable": false,
+                                    "Disk Usage": 7856,
+                                    "Group Key": [
+                                      "o.o_custkey"
+                                    ],
+                                    "HashAgg Batches": 5,
+                                    "Node Type": "Aggregate",
+                                    "Parallel Aware": false,
+                                    "Parent Relationship": "Subquery",
+                                    "Partial Mode": "Simple",
+                                    "Peak Memory Usage": 8241,
+                                    "Plan Rows": 86641,
+                                    "Plan Width": 12,
+                                    "Planned Partitions": 0,
+                                    "Plans": [
+                                      {
+                                        "Actual Loops": 3,
+                                        "Actual Rows": 1483839,
+                                        "Actual Startup Time": 0.012,
+                                        "Actual Total Time": 219.035,
+                                        "Alias": "o",
+                                        "Async Capable": false,
+                                        "Filter": "((o_comment)::text !~~ '%pending%deposits%'::text)",
+                                        "Node Type": "Seq Scan",
+                                        "Parallel Aware": false,
+                                        "Parent Relationship": "Outer",
+                                        "Plan Rows": 1484848,
+                                        "Plan Width": 4,
+                                        "Relation Name": "orders",
+                                        "Rows Removed by Filter": 16161,
+                                        "Startup Cost": 0.0,
+                                        "Total Cost": 44886.0,
+                                        "Workers": []
+                                      }
+                                    ],
+                                    "Startup Cost": 52310.24,
+                                    "Strategy": "Hashed",
+                                    "Total Cost": 53176.65,
+                                    "Workers": [
+                                      {
+                                        "Disk Usage": 7856,
+                                        "HashAgg Batches": 5,
+                                        "Peak Memory Usage": 8241,
+                                        "Worker Number": 0
+                                      },
+                                      {
+                                        "Disk Usage": 7856,
+                                        "HashAgg Batches": 5,
+                                        "Peak Memory Usage": 8241,
+                                        "Worker Number": 1
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "Startup Cost": 52310.24,
+                                "Total Cost": 54043.06,
+                                "Workers": []
+                              }
+                            ],
+                            "Startup Cost": 54043.06,
+                            "Total Cost": 54043.06,
+                            "Workers": []
+                          }
+                        ],
+                        "Startup Cost": 55126.49,
+                        "Total Cost": 58331.58,
+                        "Workers": []
+                      }
+                    ],
+                    "Startup Cost": 58644.08,
+                    "Strategy": "Hashed",
+                    "Total Cost": 58646.08,
+                    "Workers": [
+                      {
+                        "Disk Usage": 0,
+                        "HashAgg Batches": 1,
+                        "Peak Memory Usage": 40,
+                        "Worker Number": 0
+                      },
+                      {
+                        "Disk Usage": 0,
+                        "HashAgg Batches": 1,
+                        "Peak Memory Usage": 40,
+                        "Worker Number": 1
+                      }
+                    ]
+                  }
+                ],
+                "Sort Key": [
+                  "(COALESCE(coc.c_count, '0'::bigint)) DESC"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Type": "Memory",
+                "Sort Space Used": 26,
+                "Startup Cost": 58653.72,
+                "Total Cost": 58654.22,
+                "Workers": [
+                  {
+                    "Sort Method": "quicksort",
+                    "Sort Space Type": "Memory",
+                    "Sort Space Used": 26,
+                    "Worker Number": 0
+                  },
+                  {
+                    "Sort Method": "quicksort",
+                    "Sort Space Type": "Memory",
+                    "Sort Space Used": 26,
+                    "Worker Number": 1
+                  }
+                ]
+              }
+            ],
+            "Startup Cost": 59653.74,
+            "Total Cost": 59700.41,
+            "Workers Launched": 2,
+            "Workers Planned": 2
+          }
+        ],
+        "Startup Cost": 59653.74,
+        "Strategy": "Sorted",
+        "Total Cost": 59704.41
+      }
+    ],
+    "Sort Key": [
+      "(count(*)) DESC",
+      "(COALESCE(coc.c_count, '0'::bigint)) DESC"
+    ],
+    "Sort Method": "quicksort",
+    "Sort Space Type": "Memory",
+    "Sort Space Used": 26,
+    "Startup Cost": 59712.06,
+    "Total Cost": 59712.56
+  },
+  "Planning Time": 0.259,
+  "Triggers": []
+}

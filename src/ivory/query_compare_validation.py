@@ -223,7 +223,12 @@ def validate_query_compare_benchmark(
                 baseline_order_stable=baseline_order_stable,
                 alternative_order_stable=alternative_order_stable,
             )
-            comparisons.append(asdict(summary))
+            comparison = asdict(summary)
+            comparison["rewrite_family"] = alternative.get("rewrite_family")
+            comparison["structural_change"] = alternative.get("structural_change")
+            comparison["selection_reason"] = alternative.get("selection_reason")
+            comparison["sql_path"] = alternative.get("sql_path")
+            comparisons.append(comparison)
 
     output = {
         "artifact_name": "query_compare_validation",

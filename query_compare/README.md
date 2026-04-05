@@ -3,13 +3,30 @@
 This directory holds a small curated workflow for comparing alternative SQL
 formulations of the same query with Ivory's trained estimator.
 
+The benchmark is curated for plausible planner-cost discrimination, not
+syntax-only SQL variation. It uses five rendered TPC-H templates on
+`tpch_sf_1`: `Q9`, `Q11`, `Q13`, `Q15`, and `Q17`.
+
+Not every selected template has to become headline evidence. The benchmark is
+intended to include a small number of structurally meaningful controls, while
+headline writeup claims should come from templates that actually show realized
+planner-cost separation after validation.
+
 ## Inputs
 
 - `benchmark.json` is the machine-readable source of truth.
-- `sql/*.sql` contains the baseline and accepted alternative formulations for
-  `Q3`, `Q5`, and `Q10` on `tpch_sf_1`.
+- `sql/*.sql` contains the baseline and three accepted alternative
+  formulations for each selected template.
 
 ## Phase B: Exact-Output Validation
+
+Validation is equivalence-first:
+
+- baseline and rewrite outputs must match exactly
+- row order is part of the contract
+- order-sensitive templates are rerun to confirm stable ordered output
+- live outputs are inspected against the active PostgreSQL instance used for
+  validation in this run, not just compared as pass/fail hashes
 
 Run the validator to confirm each accepted alternative matches the baseline's
 exact ordered output on `tpch_sf_1`:
@@ -23,8 +40,8 @@ The validator writes machine-readable output to
 
 ## Phase C: Estimator Comparison
 
-Run the prediction step to compare accepted formulations with the trained
-`planner_total_cost` estimator:
+After equivalence is established, run the prediction step to compare accepted
+formulations with the trained `planner_total_cost` estimator:
 
 ```bash
 ./.venv/bin/python -m ivory.query_compare_prediction --database tpch_sf_1
@@ -51,6 +68,6 @@ This step:
 The Parquet artifact under `query_compare/results/predictions/` is the
 canonical comparison output. The companion JSON summary reports, per template,
 the baseline formulation, the lowest planner-cost formulation, the lowest
-model-predicted formulation, the lowest runtime formulation when analyze mode is
-enabled, agreement between those winners, and pairwise rank correlations. This
-summary is intended to feed a later LaTeX writeup without manual recomputation.
+model-predicted formulation, the lowest runtime formulation when analyze mode
+is enabled, agreement between those winners, and pairwise dense-rank
+correlations.

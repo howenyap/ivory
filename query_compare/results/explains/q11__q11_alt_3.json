@@ -1,0 +1,198 @@
+{
+  "Execution Time": 35.013,
+  "Plan": {
+    "Actual Loops": 1,
+    "Actual Rows": 869,
+    "Actual Startup Time": 34.707,
+    "Actual Total Time": 34.728,
+    "Async Capable": false,
+    "Node Type": "Sort",
+    "Parallel Aware": false,
+    "Plan Rows": 10667,
+    "Plan Width": 36,
+    "Plans": [
+      {
+        "Actual Loops": 1,
+        "Actual Rows": 869,
+        "Actual Startup Time": 31.147,
+        "Actual Total Time": 34.595,
+        "Alias": "valued_parts",
+        "Async Capable": false,
+        "Filter": "(valued_parts.value > valued_parts.threshold_value)",
+        "Node Type": "Subquery Scan",
+        "Parallel Aware": false,
+        "Parent Relationship": "Outer",
+        "Plan Rows": 10667,
+        "Plan Width": 36,
+        "Plans": [
+          {
+            "Actual Loops": 1,
+            "Actual Rows": 30639,
+            "Actual Startup Time": 31.144,
+            "Actual Total Time": 33.524,
+            "Async Capable": false,
+            "Node Type": "WindowAgg",
+            "Parallel Aware": false,
+            "Parent Relationship": "Subquery",
+            "Plan Rows": 32000,
+            "Plan Width": 68,
+            "Plans": [
+              {
+                "Actual Loops": 1,
+                "Actual Rows": 30639,
+                "Actual Startup Time": 21.665,
+                "Actual Total Time": 28.478,
+                "Async Capable": false,
+                "Disk Usage": 680,
+                "Group Key": [
+                  "ps.ps_partkey"
+                ],
+                "HashAgg Batches": 5,
+                "Node Type": "Aggregate",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Partial Mode": "Simple",
+                "Peak Memory Usage": 8241,
+                "Plan Rows": 32000,
+                "Plan Width": 36,
+                "Planned Partitions": 0,
+                "Plans": [
+                  {
+                    "Actual Loops": 1,
+                    "Actual Rows": 32560,
+                    "Actual Startup Time": 0.045,
+                    "Actual Total Time": 14.83,
+                    "Async Capable": false,
+                    "Inner Unique": false,
+                    "Join Type": "Inner",
+                    "Node Type": "Nested Loop",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 32000,
+                    "Plan Width": 14,
+                    "Plans": [
+                      {
+                        "Actual Loops": 1,
+                        "Actual Rows": 407,
+                        "Actual Startup Time": 0.041,
+                        "Actual Total Time": 0.2,
+                        "Async Capable": false,
+                        "Inner Unique": false,
+                        "Join Type": "Inner",
+                        "Node Type": "Nested Loop",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Outer",
+                        "Plan Rows": 400,
+                        "Plan Width": 4,
+                        "Plans": [
+                          {
+                            "Actual Loops": 1,
+                            "Actual Rows": 1,
+                            "Actual Startup Time": 0.004,
+                            "Actual Total Time": 0.006,
+                            "Alias": "n",
+                            "Async Capable": false,
+                            "Filter": "(n_name = 'CHINA'::bpchar)",
+                            "Node Type": "Seq Scan",
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Outer",
+                            "Plan Rows": 1,
+                            "Plan Width": 4,
+                            "Relation Name": "nation",
+                            "Rows Removed by Filter": 24,
+                            "Startup Cost": 0.0,
+                            "Total Cost": 1.31
+                          },
+                          {
+                            "Actual Loops": 1,
+                            "Actual Rows": 407,
+                            "Actual Startup Time": 0.036,
+                            "Actual Total Time": 0.166,
+                            "Alias": "s",
+                            "Async Capable": false,
+                            "Exact Heap Blocks": 184,
+                            "Lossy Heap Blocks": 0,
+                            "Node Type": "Bitmap Heap Scan",
+                            "Parallel Aware": false,
+                            "Parent Relationship": "Inner",
+                            "Plan Rows": 400,
+                            "Plan Width": 8,
+                            "Plans": [
+                              {
+                                "Actual Loops": 1,
+                                "Actual Rows": 407,
+                                "Actual Startup Time": 0.015,
+                                "Actual Total Time": 0.015,
+                                "Async Capable": false,
+                                "Index Cond": "(s_nationkey = n.n_nationkey)",
+                                "Index Name": "idx_supplier_nationkey",
+                                "Node Type": "Bitmap Index Scan",
+                                "Parallel Aware": false,
+                                "Parent Relationship": "Outer",
+                                "Plan Rows": 400,
+                                "Plan Width": 0,
+                                "Startup Cost": 0.0,
+                                "Total Cost": 7.29
+                              }
+                            ],
+                            "Recheck Cond": "(s_nationkey = n.n_nationkey)",
+                            "Relation Name": "supplier",
+                            "Rows Removed by Index Recheck": 0,
+                            "Startup Cost": 7.38,
+                            "Total Cost": 240.65
+                          }
+                        ],
+                        "Startup Cost": 7.38,
+                        "Total Cost": 245.96
+                      },
+                      {
+                        "Actual Loops": 407,
+                        "Actual Rows": 80,
+                        "Actual Startup Time": 0.001,
+                        "Actual Total Time": 0.032,
+                        "Alias": "ps",
+                        "Async Capable": false,
+                        "Index Cond": "(ps_suppkey = s.s_suppkey)",
+                        "Index Name": "idx_partsupp_suppkey",
+                        "Node Type": "Index Scan",
+                        "Parallel Aware": false,
+                        "Parent Relationship": "Inner",
+                        "Plan Rows": 80,
+                        "Plan Width": 18,
+                        "Relation Name": "partsupp",
+                        "Rows Removed by Index Recheck": 0,
+                        "Scan Direction": "Forward",
+                        "Startup Cost": 0.42,
+                        "Total Cost": 9.12
+                      }
+                    ],
+                    "Startup Cost": 7.81,
+                    "Total Cost": 4213.08
+                  }
+                ],
+                "Startup Cost": 4533.08,
+                "Strategy": "Hashed",
+                "Total Cost": 4933.08
+              }
+            ],
+            "Startup Cost": 4533.08,
+            "Total Cost": 5413.08
+          }
+        ],
+        "Rows Removed by Filter": 29770,
+        "Startup Cost": 4533.08,
+        "Total Cost": 5813.08
+      }
+    ],
+    "Sort Key": [
+      "valued_parts.value DESC"
+    ],
+    "Sort Method": "quicksort",
+    "Sort Space Type": "Memory",
+    "Sort Space Used": 58,
+    "Startup Cost": 6526.75,
+    "Total Cost": 6553.41
+  },
+  "Planning Time": 0.402,
+  "Triggers": []
+}

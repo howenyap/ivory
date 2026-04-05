@@ -29,26 +29,33 @@ def test_query_compare_benchmark_has_expected_shape() -> None:
         "for the same parameter instance and database state"
     )
     assert benchmark["defaults"]["completed_phases"] == [
+        "template screening",
         "query formulation",
         "logical review",
-    ]
-    assert benchmark["defaults"]["next_phase_requirements"] == [
         "exact output comparison including row order",
         "EXPLAIN (FORMAT JSON) collection",
         "estimator scoring",
     ]
+    assert benchmark["defaults"]["next_phase_requirements"] == [
+        "analyze-enabled runtime comparison",
+        "repo-wide verification",
+    ]
 
     templates = benchmark["templates"]
-    assert [template["template_id"] for template in templates] == ["q3", "q5", "q10"]
-    assert [template["query_instance_id"] for template in templates] == [
-        "q3-q3-p0000-sf-1.0",
-        "q5-q5-p0000-sf-1.0",
-        "q10-q10-p0000-sf-1.0",
+    assert len(templates) == 5
+    assert [template["template_id"] for template in templates] == [
+        "q9",
+        "q11",
+        "q13",
+        "q15",
+        "q17",
     ]
-    assert [template["parameter_set_id"] for template in templates] == [
-        "q3-p0000",
-        "q5-p0000",
-        "q10-p0000",
+    assert [template["query_instance_id"] for template in templates] == [
+        "q9-q9-p0000-sf-1.0",
+        "q11-q11-p0000-sf-1.0",
+        "q13-q13-p0000-sf-1.0",
+        "q15-q15-p0000-sf-1.0",
+        "q17-q17-p0000-sf-1.0",
     ]
 
     for template in templates:
@@ -56,7 +63,9 @@ def test_query_compare_benchmark_has_expected_shape() -> None:
             "accepted",
             "accepted_with_ordering_caveat",
         }
+        assert template["screening_rationale"].strip()
         assert template["baseline_sql"].strip()
+        assert template["baseline_sql_path"].startswith("query_compare/sql/")
 
         alternatives = template["accepted_formulations"]
         assert len(alternatives) == 3
@@ -67,35 +76,35 @@ def test_query_compare_benchmark_has_expected_shape() -> None:
         ]
         for alternative in alternatives:
             assert alternative["logical_review_status"] == "accepted"
+            assert alternative["rewrite_family"].strip()
             assert alternative["sql"].strip()
+            assert alternative["sql_path"].startswith("query_compare/sql/")
             assert alternative["equivalence_rationale"].strip()
-            assert alternative["risk_note"].strip()
-            assert len(alternative["equivalence_rationale"]) <= 240
-            assert len(alternative["risk_note"]) <= 160
+            assert alternative["structural_change"].strip()
+            assert alternative["selection_reason"].strip()
+            assert len(alternative["exclusion_guardrails"]) >= 1
 
-        rejected_formulation_ideas = template["rejected_formulation_ideas"]
-        assert len(rejected_formulation_ideas) >= 3
-        for rejected in rejected_formulation_ideas:
-            assert rejected["idea"].strip()
-            assert rejected["reason"].strip()
-            assert len(rejected["reason"]) <= 120
+        rejected_formulations = template["rejected_formulations"]
+        assert len(rejected_formulations) >= 3
+        for rejected in rejected_formulations:
+            assert rejected["rewrite_family"].strip()
+            assert rejected["rejection_reason"].strip()
+            assert (
+                rejected.get("equivalence_concern", "").strip()
+                or rejected.get("planner_reason", "").strip()
+            )
 
 
 def test_sql_files_exist_for_all_bases_and_formulations() -> None:
+    benchmark = json.loads(BENCHMARK_PATH.read_text())
+
     expected_files = {
-        "q3_base.sql",
-        "q3_formulation_1_explicit_inner_join.sql",
-        "q3_formulation_2_single_table_filter_ctes.sql",
-        "q3_formulation_3_lineitem_preaggregation_cte.sql",
-        "q5_base.sql",
-        "q5_formulation_1_explicit_inner_join.sql",
-        "q5_formulation_2_orders_filter_cte.sql",
-        "q5_formulation_3_asia_dimension_cte.sql",
-        "q10_base.sql",
-        "q10_formulation_1_explicit_inner_join.sql",
-        "q10_formulation_2_filtered_orders_and_lineitem_ctes.sql",
-        "q10_formulation_3_join_first_cte_then_aggregate.sql",
+        Path(template["baseline_sql_path"]).name for template in benchmark["templates"]
     }
+    for template in benchmark["templates"]:
+        for alternative in template["accepted_formulations"]:
+            expected_files.add(Path(alternative["sql_path"]).name)
+
     actual_files = {path.name for path in SQL_DIR.iterdir() if path.is_file()}
 
     assert actual_files == expected_files
@@ -111,14 +120,12 @@ def test_sql_files_match_vetted_benchmark_queries_exactly() -> None:
 
     expected_sql_by_filename: dict[str, str] = {}
     for template in benchmark["templates"]:
-        template_id = template["template_id"]
-        expected_sql_by_filename[f"{template_id}_base.sql"] = template["baseline_sql"]
-        for index, alternative in enumerate(
-            template["accepted_formulations"], start=1
-        ):
-            suffix = alternative["formulation_type"]
+        expected_sql_by_filename[
+            Path(template["baseline_sql_path"]).name
+        ] = template["baseline_sql"]
+        for alternative in template["accepted_formulations"]:
             expected_sql_by_filename[
-                f"{template_id}_formulation_{index}_{suffix}.sql"
+                Path(alternative["sql_path"]).name
             ] = alternative["sql"]
 
     for filename, expected_sql in expected_sql_by_filename.items():
@@ -144,24 +151,24 @@ def test_compare_results_detects_exact_match_and_ordered_row_mismatch() -> None:
     )
 
     matched = compare_results(
-        template_id="q3",
-        formulation_id="q3_alt_1",
-        formulation_type="explicit_inner_join",
+        template_id="q9",
+        formulation_id="q9_alt_1",
+        formulation_type="filtered_part_island",
         baseline_result=baseline,
         alternative_result=same,
     )
     mismatched = compare_results(
-        template_id="q3",
-        formulation_id="q3_alt_2",
-        formulation_type="single_table_filter_ctes",
+        template_id="q9",
+        formulation_id="q9_alt_2",
+        formulation_type="profit_rows_derived_table",
         baseline_result=baseline,
         alternative_result=reordered,
     )
 
     assert matched == ComparisonSummary(
-        template_id="q3",
-        formulation_id="q3_alt_1",
-        formulation_type="explicit_inner_join",
+        template_id="q9",
+        formulation_id="q9_alt_1",
+        formulation_type="filtered_part_island",
         exact_match=True,
         baseline_order_stable=True,
         alternative_order_stable=True,
@@ -202,8 +209,8 @@ def test_main_returns_nonzero_when_any_formulation_mismatches(
             "all_exact_matches": False,
             "comparisons": [
                 {
-                    "template_id": "q3",
-                    "formulation_id": "q3_alt_1",
+                    "template_id": "q9",
+                    "formulation_id": "q9_alt_1",
                     "exact_match": False,
                 }
             ],

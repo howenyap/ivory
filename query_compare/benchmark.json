@@ -1,193 +1,458 @@
 {
   "artifact_name": "query_compare_benchmark",
-  "artifact_version": 1,
+  "artifact_version": 2,
   "scope": "query_formulation_comparison_only",
-  "description": "Human-reviewed query-comparison benchmark for three rendered TPC-H query instances. This artifact captures baseline SQL, three low-risk alternative formulations per template, and rejected formulation ideas. It does not claim empirical equivalence yet; the next phase must validate exact output equality, including row order, on the target database.",
+  "description": "Human-reviewed discriminative query-comparison benchmark for five rendered TPC-H query instances. The benchmark is curated for plausible planner-cost separation, not syntax-only diversity, and records baseline SQL plus three structurally meaningful equivalent rewrites per template.",
   "defaults": {
     "scale_factor": 1.0,
     "parameter_set_id": "p0000",
     "equivalence_standard": "same columns, same values, same row multiplicities, and same row ordering for the same parameter instance and database state",
     "completed_phases": [
+      "template screening",
       "query formulation",
-      "logical review"
-    ],
-    "next_phase_requirements": [
+      "logical review",
       "exact output comparison including row order",
       "EXPLAIN (FORMAT JSON) collection",
       "estimator scoring"
+    ],
+    "next_phase_requirements": [
+      "analyze-enabled runtime comparison",
+      "repo-wide verification"
     ]
   },
   "source_provenance": {
     "rendered_query_source": "artifacts/raw/sf_1_0/raw_runs.parquet",
-    "rendered_query_selection_policy": "first successful q3/q5/q10 query_instance_id at scale factor 1.0 with parameter_set_id qN-p0000",
+    "rendered_query_selection_policy": "first successful rendered query_instance_id at scale factor 1.0 for q9/q11/q13/q15/q17 with parameter_set_id qN-p0000",
     "canonical_template_reference": "https://github.com/electrum/tpch-dbgen"
+  },
+  "screening": {
+    "goal": "Select a small set of rendered TPC-H templates with research-backed rewrite families that plausibly change PostgreSQL plan shape or planner_total_cost while preserving duplicate-sensitive semantics. Headline evidence should come from templates that realize separation after validation; flatter templates can remain as controls.",
+    "selected_template_ids": [
+      "q9",
+      "q11",
+      "q13",
+      "q15",
+      "q17"
+    ],
+    "excluded_templates": [
+      {
+        "template_id": "q3",
+        "reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+      },
+      {
+        "template_id": "q10",
+        "reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+      },
+      {
+        "template_id": "q18",
+        "reason": "Top-N plus semi-join-style filtering makes equivalence review brittle."
+      },
+      {
+        "template_id": "q21",
+        "reason": "Exists/not-exists semantics are too close to semi-join and anti-join rewrites."
+      },
+      {
+        "template_id": "q1",
+        "reason": "Too little structural rewrite space for planner-cost discrimination."
+      },
+      {
+        "template_id": "q6",
+        "reason": "Too little structural rewrite space for planner-cost discrimination."
+      },
+      {
+        "template_id": "q12",
+        "reason": "Too little structural rewrite space for planner-cost discrimination."
+      },
+      {
+        "template_id": "q14",
+        "reason": "Too little structural rewrite space for planner-cost discrimination."
+      }
+    ]
   },
   "templates": [
     {
-      "template_id": "q3",
-      "query_instance_id": "q3-q3-p0000-sf-1.0",
-      "parameter_set_id": "q3-p0000",
+      "template_id": "q9",
+      "query_instance_id": "q9-q9-p0000-sf-1.0",
+      "parameter_set_id": "q9-p0000",
       "scale_factor": 1.0,
+      "screening_rationale": "Six-way join with a line-grain profit expression and no top-N clause. Equivalent rewrites can factor selective subgraphs or join islands without changing multiplicity.",
       "baseline_suitability": {
-        "status": "accepted_with_ordering_caveat",
-        "summary": "Good formulation seed: inner joins, row-local filters, aggregate after join formation, and explicit top-N ordering. Safe alternative formulations must preserve duplicate-producing joins and the exact `order by revenue desc, o_orderdate limit 10` contract.",
-        "ordering_caveat": "Ties beyond `revenue desc, o_orderdate` remain unspecified by the baseline. The next phase must empirically confirm stable ordered output for the chosen parameter instance."
+        "status": "accepted",
+        "summary": "Safe rewrite space comes from factoring the selective part filter and rearranging the fact-versus-dimension subgraphs while keeping the line-level amount definition intact."
       },
-      "baseline_sql": "select\n\tl_orderkey,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue,\n\to_orderdate,\n\to_shippriority\nfrom\n\tcustomer,\n\torders,\n\tlineitem\nwhere\n\tc_mktsegment = 'MACHINERY'\n\tand c_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand o_orderdate < date '1995-03-25'\n\tand l_shipdate > date '1995-03-25'\ngroup by\n\tl_orderkey,\n\to_orderdate,\n\to_shippriority\norder by\n\trevenue desc,\n\to_orderdate\nlimit 10;\n",
+      "baseline_sql_path": "query_compare/sql/q9_base.sql",
+      "baseline_sql": "select\n    nation,\n    o_year,\n    sum(amount) as sum_profit\nfrom (\n    select\n        n_name as nation,\n        extract(year from o_orderdate) as o_year,\n        l_extendedprice * (1 - l_discount) - ps_supplycost * l_quantity as amount\n    from\n        part,\n        supplier,\n        lineitem,\n        partsupp,\n        orders,\n        nation\n    where\n        s_suppkey = l_suppkey\n        and ps_suppkey = l_suppkey\n        and ps_partkey = l_partkey\n        and p_partkey = l_partkey\n        and o_orderkey = l_orderkey\n        and s_nationkey = n_nationkey\n        and p_name like '%indian%'\n) as profit\ngroup by\n    nation,\n    o_year\norder by\n    nation,\n    o_year desc;\n",
       "accepted_formulations": [
         {
-          "formulation_id": "q3_alt_1",
-          "formulation_type": "explicit_inner_join",
+          "formulation_id": "q9_alt_1",
+          "formulation_type": "filtered_part_island",
+          "rewrite_family": "join_island_factoring",
           "logical_review_status": "accepted",
-          "sql": "select\n    l.l_orderkey,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom customer c\njoin orders o\n  on c.c_custkey = o.o_custkey\njoin lineitem l\n  on l.l_orderkey = o.o_orderkey\nwhere c.c_mktsegment = 'MACHINERY'\n  and o.o_orderdate < date '1995-03-25'\n  and l.l_shipdate > date '1995-03-25'\ngroup by\n    l.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
-          "equivalence_rationale": "Pure syntax normalization from comma joins to explicit inner joins. Join graph, filters, grouping, aggregate expression, ordering, and limit are unchanged.",
-          "risk_note": "Very low risk. Preserve the exact sort keys and avoid changing join type."
+          "sql_path": "query_compare/sql/q9_formulation_1_filtered_part_island.sql",
+          "sql": "with filtered_part as (\n    select\n        p_partkey\n    from\n        part\n    where\n        p_name like '%indian%'\n)\nselect\n    profit.nation,\n    profit.o_year,\n    sum(profit.amount) as sum_profit\nfrom (\n    select\n        n.n_name as nation,\n        extract(year from o.o_orderdate) as o_year,\n        l.l_extendedprice * (1 - l.l_discount) - ps.ps_supplycost * l.l_quantity as amount\n    from\n        filtered_part p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    join partsupp ps\n        on ps.ps_partkey = l.l_partkey\n        and ps.ps_suppkey = l.l_suppkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join supplier s\n        on s.s_suppkey = l.l_suppkey\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n) as profit\ngroup by\n    profit.nation,\n    profit.o_year\norder by\n    profit.nation,\n    profit.o_year desc;\n",
+          "equivalence_rationale": "The selective part predicate is isolated before the same lineitem, partsupp, supplier, orders, and nation joins; line-level amount rows remain unchanged.",
+          "structural_change": "Factors the part filter into a selective derived-table island before the remaining joins.",
+          "selection_reason": "Likely to change join search space by shrinking the fact-side input early.",
+          "exclusion_guardrails": [
+            "Keep the partsupp join on both part and supplier keys.",
+            "Do not pre-aggregate before the line-level amount expression exists."
+          ]
         },
         {
-          "formulation_id": "q3_alt_2",
-          "formulation_type": "single_table_filter_ctes",
+          "formulation_id": "q9_alt_2",
+          "formulation_type": "profit_rows_derived_table",
+          "rewrite_family": "derived_table_factoring",
           "logical_review_status": "accepted",
-          "sql": "with\nc as (\n    select *\n    from customer\n    where c_mktsegment = 'MACHINERY'\n),\no as (\n    select *\n    from orders\n    where o_orderdate < date '1995-03-25'\n),\nl as (\n    select *\n    from lineitem\n    where l_shipdate > date '1995-03-25'\n)\nselect\n    l.l_orderkey,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom c\njoin o\n  on c.c_custkey = o.o_custkey\njoin l\n  on l.l_orderkey = o.o_orderkey\ngroup by\n    l.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
-          "equivalence_rationale": "Each CTE applies only a row-local predicate to one base table before the same joins. No projection, deduplication, or aggregation is introduced before joining.",
-          "risk_note": "Low risk. Keep the CTEs filter-only."
+          "sql_path": "query_compare/sql/q9_formulation_2_profit_rows_derived_table.sql",
+          "sql": "with profit_rows as (\n    select\n        n.n_name as nation,\n        extract(year from o.o_orderdate) as o_year,\n        l.l_extendedprice * (1 - l.l_discount) - ps.ps_supplycost * l.l_quantity as amount\n    from\n        lineitem l\n    join partsupp ps\n        on ps.ps_partkey = l.l_partkey\n        and ps.ps_suppkey = l.l_suppkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join supplier s\n        on s.s_suppkey = l.l_suppkey\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    join part p\n        on p.p_partkey = l.l_partkey\n    where\n        p.p_name like '%indian%'\n)\nselect\n    nation,\n    o_year,\n    sum(amount) as sum_profit\nfrom\n    profit_rows\ngroup by\n    nation,\n    o_year\norder by\n    nation,\n    o_year desc;\n",
+          "equivalence_rationale": "The inner relation still emits one row per qualifying lineitem/partsupp match with the same nation, year, and amount values before the outer aggregation.",
+          "structural_change": "Materializes a named line-grain profit_rows relation and aggregates only outside it.",
+          "selection_reason": "Creates a clean subquery boundary that can alter plan shape without changing row semantics.",
+          "exclusion_guardrails": [
+            "Do not add DISTINCT.",
+            "Do not change the outer group keys or ordering."
+          ]
         },
         {
-          "formulation_id": "q3_alt_3",
-          "formulation_type": "lineitem_preaggregation_cte",
+          "formulation_id": "q9_alt_3",
+          "formulation_type": "join_island_fact_dimension_split",
+          "rewrite_family": "join_island_factoring",
           "logical_review_status": "accepted",
-          "sql": "with lineitem_rev as (\n    select\n        l_orderkey,\n        sum(l_extendedprice * (1 - l_discount)) as order_revenue\n    from lineitem\n    where l_shipdate > date '1995-03-25'\n    group by l_orderkey\n)\nselect\n    lr.l_orderkey,\n    sum(lr.order_revenue) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom customer c\njoin orders o\n  on c.c_custkey = o.o_custkey\njoin lineitem_rev lr\n  on lr.l_orderkey = o.o_orderkey\nwhere c.c_mktsegment = 'MACHINERY'\n  and o.o_orderdate < date '1995-03-25'\ngroup by\n    lr.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
-          "equivalence_rationale": "Only additive lineitem revenue per order is pre-aggregated after the lineitem-local filter. The outer aggregate remains to preserve any downstream duplication introduced by later joins.",
-          "risk_note": "Slightly more structural but still acceptable. Do not drop the outer `sum(...)` or outer `group by`."
+          "sql_path": "query_compare/sql/q9_formulation_3_join_island_fact_dimension_split.sql",
+          "sql": "with supplier_nations as (\n    select\n        s.s_suppkey,\n        n.n_name as nation\n    from\n        supplier s\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n),\nfact_rows as (\n    select\n        l.l_suppkey,\n        l.l_orderkey,\n        l.l_extendedprice,\n        l.l_discount,\n        l.l_quantity,\n        ps.ps_supplycost\n    from\n        part p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    join partsupp ps\n        on ps.ps_partkey = l.l_partkey\n        and ps.ps_suppkey = l.l_suppkey\n    where\n        p.p_name like '%indian%'\n)\nselect\n    sn.nation,\n    extract(year from o.o_orderdate) as o_year,\n    sum(\n        fr.l_extendedprice * (1 - fr.l_discount)\n        - fr.ps_supplycost * fr.l_quantity\n    ) as sum_profit\nfrom\n    fact_rows fr\njoin supplier_nations sn\n    on sn.s_suppkey = fr.l_suppkey\njoin orders o\n    on o.o_orderkey = fr.l_orderkey\ngroup by\n    sn.nation,\n    extract(year from o.o_orderdate)\norder by\n    sn.nation,\n    o_year desc;\n",
+          "equivalence_rationale": "Supplier-to-nation rows and the filtered fact rows are separated, but each qualifying fact row still joins to exactly one supplier nation and one order year before aggregation.",
+          "structural_change": "Splits the query into supplier-nation and fact-side islands before the final aggregate.",
+          "selection_reason": "Most likely q9 rewrite to force a meaningfully different join tree.",
+          "exclusion_guardrails": [
+            "Preserve the supplier-nation one-to-one relationship.",
+            "Do not deduplicate the fact rows."
+          ]
         }
       ],
-      "rejected_formulation_ideas": [
+      "rejected_formulations": [
         {
-          "idea": "Replace the customer join with `exists (...)` or `in (select ...)`.",
-          "reason": "Converts a duplicate-preserving join into a semi-join and can change multiplicity."
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "Replacing joins with EXISTS/IN can change duplicate-preserving behavior.",
+          "equivalence_concern": "May drop legitimate multiplicity from lineitem and partsupp matches."
         },
         {
-          "idea": "Add `distinct` or `distinct on (...)`.",
-          "reason": "The baseline preserves duplicates; deduplication can change results and ordering behavior."
+          "rewrite_family": "early_aggregation",
+          "rejection_reason": "Aggregating before the amount expression is fully formed is not safe here.",
+          "equivalence_concern": "Can merge rows that should remain distinct until after supplier and order attributes are attached."
         },
         {
-          "idea": "Use `fetch first 10 rows with ties` or a window-function top-N reformulation.",
-          "reason": "Changes tie handling relative to plain `limit 10`."
-        },
-        {
-          "idea": "Add an extra tie-breaker such as `l_orderkey` to the `order by`.",
-          "reason": "Strengthens the ordering contract beyond the baseline."
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "DISTINCT-style rewrites invalidate the benchmark.",
+          "equivalence_concern": "Would change row multiplicity by construction."
         }
       ]
     },
     {
-      "template_id": "q5",
-      "query_instance_id": "q5-q5-p0000-sf-1.0",
-      "parameter_set_id": "q5-p0000",
+      "template_id": "q11",
+      "query_instance_id": "q11-q11-p0000-sf-1.0",
+      "parameter_set_id": "q11-p0000",
       "scale_factor": 1.0,
+      "screening_rationale": "Nested aggregate with a repeated global threshold over the same filtered supplier population. This is strong rewrite territory for shared aggregation and threshold factoring.",
       "baseline_suitability": {
         "status": "accepted_with_ordering_caveat",
-        "summary": "Suitable for low-risk alternative formulations: all inner joins, one grouped aggregate, and a preserved half-open one-year date range. Safety depends on preserving duplicate-propagating join behavior across `nation` and `region`.",
-        "ordering_caveat": "The baseline orders only by `revenue desc`. The next phase must confirm that the chosen parameter instance does not rely on unspecified tie ordering."
+        "summary": "The grouped-value threshold can be factored safely if the threshold is computed over the exact same grouped rows.",
+        "ordering_caveat": "The query orders only by value desc, so repeated validation was used to confirm stable ordered output on q11-p0000."
       },
-      "baseline_sql": "select\n\tn_name,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue\nfrom\n\tcustomer,\n\torders,\n\tlineitem,\n\tsupplier,\n\tnation,\n\tregion\nwhere\n\tc_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand l_suppkey = s_suppkey\n\tand c_nationkey = s_nationkey\n\tand s_nationkey = n_nationkey\n\tand n_regionkey = r_regionkey\n\tand r_name = 'ASIA'\n\tand o_orderdate >= date '1994-01-01'\n\tand o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by\n\tn_name\norder by\n\trevenue desc;\n",
+      "baseline_sql_path": "query_compare/sql/q11_base.sql",
+      "baseline_sql": "select\n    ps_partkey,\n    sum(ps_supplycost * ps_availqty) as value\nfrom\n    partsupp,\n    supplier,\n    nation\nwhere\n    ps_suppkey = s_suppkey\n    and s_nationkey = n_nationkey\n    and n_name = 'CHINA'\ngroup by\n    ps_partkey\nhaving\n    sum(ps_supplycost * ps_availqty) > (\n        select\n            sum(ps_supplycost * ps_availqty) * 0.0001000000\n        from\n            partsupp,\n            supplier,\n            nation\n        where\n            ps_suppkey = s_suppkey\n            and s_nationkey = n_nationkey\n            and n_name = 'CHINA'\n    )\norder by\n    value desc;\n",
       "accepted_formulations": [
         {
-          "formulation_id": "q5_alt_1",
-          "formulation_type": "explicit_inner_join",
+          "formulation_id": "q11_alt_1",
+          "formulation_type": "shared_part_values_and_threshold",
+          "rewrite_family": "aggregate_factoring",
           "logical_review_status": "accepted",
-          "sql": "select\n    n.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom customer c\njoin orders o\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin nation n\n    on s.s_nationkey = n.n_nationkey\njoin region r\n    on n.n_regionkey = r.r_regionkey\nwhere c.c_nationkey = s.s_nationkey\n  and r.r_name = 'ASIA'\n  and o.o_orderdate >= date '1994-01-01'\n  and o.o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by n.n_name\norder by revenue desc;\n",
-          "equivalence_rationale": "Pure join syntax normalization. Join predicates, date window, grouped aggregate, and ordering are unchanged.",
-          "risk_note": "Very low risk. Preserve the date interval exactly."
+          "sql_path": "query_compare/sql/q11_formulation_1_shared_part_values_and_threshold.sql",
+          "sql": "with part_values as (\n    select\n        ps.ps_partkey,\n        sum(ps.ps_supplycost * ps.ps_availqty) as value\n    from\n        partsupp ps\n    join supplier s\n        on s.s_suppkey = ps.ps_suppkey\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    where\n        n.n_name = 'CHINA'\n    group by\n        ps.ps_partkey\n),\nthreshold as (\n    select\n        sum(value) * 0.0001000000 as threshold_value\n    from\n        part_values\n)\nselect\n    pv.ps_partkey,\n    pv.value\nfrom\n    part_values pv\ncross join threshold t\nwhere\n    pv.value > t.threshold_value\norder by\n    pv.value desc;\n",
+          "equivalence_rationale": "The grouped ps_partkey values are computed once, and the threshold is derived from exactly that grouped relation before filtering.",
+          "structural_change": "Factors the repeated aggregate work into shared part_values and threshold CTEs.",
+          "selection_reason": "Strong candidate for planner-cost separation because it removes duplicated aggregate structure.",
+          "exclusion_guardrails": [
+            "Threshold population must exactly match the outer grouped population.",
+            "Do not change the order-by expression."
+          ]
         },
         {
-          "formulation_id": "q5_alt_2",
-          "formulation_type": "orders_filter_cte",
+          "formulation_id": "q11_alt_2",
+          "formulation_type": "grouped_values_plus_scalar_threshold",
+          "rewrite_family": "aggregate_factoring",
           "logical_review_status": "accepted",
-          "sql": "with filtered_orders as (\n    select o_orderkey, o_custkey\n    from orders\n    where o_orderdate >= date '1994-01-01'\n      and o_orderdate < date '1994-01-01' + interval '1 year'\n)\nselect\n    n.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom filtered_orders o\njoin customer c\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin nation n\n    on s.s_nationkey = n.n_nationkey\njoin region r\n    on n.n_regionkey = r.r_regionkey\nwhere c.c_nationkey = s.s_nationkey\n  and r.r_name = 'ASIA'\ngroup by n.n_name\norder by revenue desc;\n",
-          "equivalence_rationale": "The CTE is a row-preserving selection on `orders` before the same joins. No `distinct` or aggregation is introduced.",
-          "risk_note": "Low risk. Safe while the CTE remains a simple filter and projection."
+          "sql_path": "query_compare/sql/q11_formulation_2_grouped_values_plus_scalar_threshold.sql",
+          "sql": "select\n    part_values.ps_partkey,\n    part_values.value\nfrom (\n    select\n        ps.ps_partkey,\n        sum(ps.ps_supplycost * ps.ps_availqty) as value\n    from\n        partsupp ps\n    join supplier s\n        on s.s_suppkey = ps.ps_suppkey\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    where\n        n.n_name = 'CHINA'\n    group by\n        ps.ps_partkey\n) as part_values\ncross join (\n    select\n        sum(grouped_values.value) * 0.0001000000 as threshold_value\n    from (\n        select\n            sum(ps.ps_supplycost * ps.ps_availqty) as value\n        from\n            partsupp ps\n        join supplier s\n            on s.s_suppkey = ps.ps_suppkey\n        join nation n\n            on n.n_nationkey = s.s_nationkey\n        where\n            n.n_name = 'CHINA'\n        group by\n            ps.ps_partkey\n    ) as grouped_values\n) as threshold\nwhere\n    part_values.value > threshold.threshold_value\norder by\n    part_values.value desc;\n",
+          "equivalence_rationale": "The grouped values and scalar threshold are split into separate derived tables, but the threshold still ranges over the same grouped part values.",
+          "structural_change": "Separates grouped values and scalar threshold into sibling derived tables.",
+          "selection_reason": "Introduces a different subquery structure without changing the threshold definition.",
+          "exclusion_guardrails": [
+            "Do not compute the threshold from raw rows.",
+            "Do not add deduplication."
+          ]
         },
         {
-          "formulation_id": "q5_alt_3",
-          "formulation_type": "asia_dimension_cte",
+          "formulation_id": "q11_alt_3",
+          "formulation_type": "window_total_threshold",
+          "rewrite_family": "window_after_safe_aggregation",
           "logical_review_status": "accepted",
-          "sql": "with asia_nation as (\n    select n.n_nationkey, n.n_name\n    from nation n\n    join region r\n        on n.n_regionkey = r.r_regionkey\n    where r.r_name = 'ASIA'\n)\nselect\n    an.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom customer c\njoin orders o\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin asia_nation an\n    on s.s_nationkey = an.n_nationkey\nwhere c.c_nationkey = s.s_nationkey\n  and o.o_orderdate >= date '1994-01-01'\n  and o.o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by an.n_name\norder by revenue desc;\n",
-          "equivalence_rationale": "Materializes the same `nation`-`region` inner join and `ASIA` filter before joining to `supplier`. Multiplicity is preserved because no deduplication is introduced.",
-          "risk_note": "Low risk. Do not add `distinct` to the CTE."
+          "sql_path": "query_compare/sql/q11_formulation_3_window_total_threshold.sql",
+          "sql": "with part_values as (\n    select\n        ps.ps_partkey,\n        sum(ps.ps_supplycost * ps.ps_availqty) as value\n    from\n        partsupp ps\n    join supplier s\n        on s.s_suppkey = ps.ps_suppkey\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    where\n        n.n_name = 'CHINA'\n    group by\n        ps.ps_partkey\n),\nvalued_parts as (\n    select\n        ps_partkey,\n        value,\n        sum(value) over () * 0.0001000000 as threshold_value\n    from\n        part_values\n)\nselect\n    ps_partkey,\n    value\nfrom\n    valued_parts\nwhere\n    value > threshold_value\norder by\n    value desc;\n",
+          "equivalence_rationale": "The window function is applied only after the per-part aggregation, so it reproduces the same global threshold over the grouped values.",
+          "structural_change": "Replaces the scalar threshold subquery with a window total over grouped rows.",
+          "selection_reason": "Likely to produce a distinct aggregate-plus-window plan shape.",
+          "exclusion_guardrails": [
+            "Use the window only after the safe per-part aggregation.",
+            "Preserve the final value-desc ordering."
+          ]
         }
       ],
-      "rejected_formulation_ideas": [
+      "rejected_formulations": [
         {
-          "idea": "Rewrite the Asian region filter with `exists` or `in (subquery)`.",
-          "reason": "Semi-join or membership semantics can collapse duplicate matches that the baseline inner join would preserve."
+          "rewrite_family": "filter_only_cte",
+          "rejection_reason": "Too likely to flatten away in PostgreSQL.",
+          "planner_reason": "Would not create meaningful planner-cost separation."
         },
         {
-          "idea": "Pre-aggregate `lineitem` by order or supplier before the remaining joins.",
-          "reason": "The final grouped revenue depends on supplier nation after the customer-supplier same-nation predicate."
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "DISTINCT-style rewrites are not allowed.",
+          "equivalence_concern": "Could alter grouped value totals."
         },
         {
-          "idea": "Add `distinct` inside filtered CTEs or derived tables.",
-          "reason": "The baseline does not deduplicate any input rows."
-        },
-        {
-          "idea": "Change the half-open date window into `between` or `<=` bounds.",
-          "reason": "Can change which rows fall into the canonical one-year interval."
+          "rewrite_family": "threshold_population_change",
+          "rejection_reason": "Any threshold over a different row set is not equivalent.",
+          "equivalence_concern": "Would change which parts survive the HAVING filter."
         }
       ]
     },
     {
-      "template_id": "q10",
-      "query_instance_id": "q10-q10-p0000-sf-1.0",
-      "parameter_set_id": "q10-p0000",
+      "template_id": "q13",
+      "query_instance_id": "q13-q13-p0000-sf-1.0",
+      "parameter_set_id": "q13-p0000",
       "scale_factor": 1.0,
+      "screening_rationale": "Outer-join plus nested aggregate histogram benchmark with clean zero-row semantics. It supports safe factoring as long as zero-order customers remain present.",
       "baseline_suitability": {
-        "status": "accepted_with_ordering_caveat",
-        "summary": "Suitable baseline: plain inner-join aggregate with conjunctive filters and a half-open 3-month date window. Safe alternative formulations must preserve lineitem grain and the exact `order by revenue desc limit 20` contract.",
-        "ordering_caveat": "The baseline orders only by `revenue desc`. The next phase must confirm that tied revenues do not create unstable row order for the selected parameter instance."
+        "status": "accepted",
+        "summary": "The accepted rewrite space is driven by preserving left-join null semantics and count(o_orderkey) behavior while changing how qualifying orders are produced."
       },
-      "baseline_sql": "select\n\tc_custkey,\n\tc_name,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue,\n\tc_acctbal,\n\tn_name,\n\tc_address,\n\tc_phone,\n\tc_comment\nfrom\n\tcustomer,\n\torders,\n\tlineitem,\n\tnation\nwhere\n\tc_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand o_orderdate >= date '1994-08-01'\n\tand o_orderdate < date '1994-08-01' + interval '3 month'\n\tand l_returnflag = 'R'\n\tand c_nationkey = n_nationkey\ngroup by\n\tc_custkey,\n\tc_name,\n\tc_acctbal,\n\tc_phone,\n\tn_name,\n\tc_address,\n\tc_comment\norder by\n\trevenue desc\nlimit 20;\n",
+      "baseline_sql_path": "query_compare/sql/q13_base.sql",
+      "baseline_sql": "select\n    c_count,\n    count(*) as custdist\nfrom (\n    select\n        c_custkey,\n        count(o_orderkey)\n    from\n        customer left outer join orders on\n            c_custkey = o_custkey\n            and o_comment not like '%pending%deposits%'\n    group by\n        c_custkey\n) as c_orders (c_custkey, c_count)\ngroup by\n    c_count\norder by\n    custdist desc,\n    c_count desc;\n",
       "accepted_formulations": [
         {
-          "formulation_id": "q10_alt_1",
-          "formulation_type": "explicit_inner_join",
+          "formulation_id": "q13_alt_1",
+          "formulation_type": "filtered_orders_left_join",
+          "rewrite_family": "selective_derived_table",
           "logical_review_status": "accepted",
-          "sql": "select\n    c.c_custkey,\n    c.c_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    c.c_acctbal,\n    n.n_name,\n    c.c_address,\n    c.c_phone,\n    c.c_comment\nfrom customer c\njoin orders o\n    on o.o_custkey = c.c_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin nation n\n    on n.n_nationkey = c.c_nationkey\nwhere o.o_orderdate >= date '1994-08-01'\n  and o.o_orderdate < date '1994-08-01' + interval '3 month'\n  and l.l_returnflag = 'R'\ngroup by\n    c.c_custkey,\n    c.c_name,\n    c.c_acctbal,\n    c.c_phone,\n    n.n_name,\n    c.c_address,\n    c.c_comment\norder by revenue desc\nlimit 20;\n",
-          "equivalence_rationale": "Same four-way inner join and same filters, only rewritten from comma joins to explicit `JOIN` syntax.",
-          "risk_note": "Very low risk. Do not add extra tie-breakers to the `order by`."
+          "sql_path": "query_compare/sql/q13_formulation_1_filtered_orders_left_join.sql",
+          "sql": "select\n    c_count,\n    count(*) as custdist\nfrom (\n    select\n        c.c_custkey,\n        count(o.o_orderkey) as c_count\n    from\n        customer c\n    left join (\n        select\n            o_orderkey,\n            o_custkey\n        from\n            orders\n        where\n            o_comment not like '%pending%deposits%'\n    ) as o\n        on c.c_custkey = o.o_custkey\n    group by\n        c.c_custkey\n) as customer_orders\ngroup by\n    c_count\norder by\n    custdist desc,\n    c_count desc;\n",
+          "equivalence_rationale": "Only qualifying orders are exposed by the derived table, and the customer left join plus count(o_orderkey) still preserves zero-match customers.",
+          "structural_change": "Factors the order comment predicate into a filtered derived table before the left join.",
+          "selection_reason": "Adds a non-trivial subquery boundary while keeping the outer-join contract intact.",
+          "exclusion_guardrails": [
+            "Keep the predicate out of the outer WHERE clause.",
+            "Count joined order keys, not all rows."
+          ]
         },
         {
-          "formulation_id": "q10_alt_2",
-          "formulation_type": "filtered_orders_and_lineitem_ctes",
+          "formulation_id": "q13_alt_2",
+          "formulation_type": "preaggregated_customer_order_counts",
+          "rewrite_family": "early_group_by_on_safe_subgraph",
           "logical_review_status": "accepted",
-          "sql": "with orders_f as (\n    select o_orderkey, o_custkey\n    from orders\n    where o_orderdate >= date '1994-08-01'\n      and o_orderdate < date '1994-08-01' + interval '3 month'\n),\nlineitem_f as (\n    select l_orderkey, l_extendedprice, l_discount\n    from lineitem\n    where l_returnflag = 'R'\n)\nselect\n    c.c_custkey,\n    c.c_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    c.c_acctbal,\n    n.n_name,\n    c.c_address,\n    c.c_phone,\n    c.c_comment\nfrom customer c\njoin orders_f o\n    on o.o_custkey = c.c_custkey\njoin lineitem_f l\n    on l.l_orderkey = o.o_orderkey\njoin nation n\n    on n.n_nationkey = c.c_nationkey\ngroup by\n    c.c_custkey,\n    c.c_name,\n    c.c_acctbal,\n    c.c_phone,\n    n.n_name,\n    c.c_address,\n    c.c_comment\norder by revenue desc\nlimit 20;\n",
-          "equivalence_rationale": "Each CTE only pre-applies a baseline filter and projects columns already sufficient for the downstream join and aggregate; join multiplicities are unchanged.",
-          "risk_note": "Low risk. Keep the CTEs as filter/projection only; no `distinct` or pre-aggregation."
+          "sql_path": "query_compare/sql/q13_formulation_2_preaggregated_customer_order_counts.sql",
+          "sql": "with customer_order_counts as (\n    select\n        o.o_custkey,\n        count(*) as c_count\n    from\n        orders o\n    where\n        o.o_comment not like '%pending%deposits%'\n    group by\n        o.o_custkey\n)\nselect\n    customer_counts.c_count,\n    count(*) as custdist\nfrom (\n    select\n        c.c_custkey,\n        coalesce(coc.c_count, 0) as c_count\n    from\n        customer c\n    left join customer_order_counts coc\n        on coc.o_custkey = c.c_custkey\n) as customer_counts\ngroup by\n    customer_counts.c_count\norder by\n    custdist desc,\n    customer_counts.c_count desc;\n",
+          "equivalence_rationale": "Qualifying order counts are aggregated to one row per customer before the left join, then missing counts are restored with coalesce(coc.c_count, 0).",
+          "structural_change": "Moves the per-customer aggregation before the final customer join and histogram.",
+          "selection_reason": "Safe pre-aggregation on the order-side subgraph is likely to change plan shape materially.",
+          "exclusion_guardrails": [
+            "Preserve customers with zero qualifying orders.",
+            "Do not replace count(o_orderkey) semantics with count(*)."
+          ]
         },
         {
-          "formulation_id": "q10_alt_3",
-          "formulation_type": "join_first_cte_then_aggregate",
+          "formulation_id": "q13_alt_3",
+          "formulation_type": "lateral_or_correlated_customer_counts",
+          "rewrite_family": "decorrelation_or_lateral",
           "logical_review_status": "accepted",
-          "sql": "with q10_rows as (\n    select\n        c.c_custkey,\n        c.c_name,\n        c.c_acctbal,\n        n.n_name,\n        c.c_address,\n        c.c_phone,\n        c.c_comment,\n        l.l_extendedprice,\n        l.l_discount\n    from customer c\n    join orders o\n        on o.o_custkey = c.c_custkey\n    join lineitem l\n        on l.l_orderkey = o.o_orderkey\n    join nation n\n        on n.n_nationkey = c.c_nationkey\n    where o.o_orderdate >= date '1994-08-01'\n      and o.o_orderdate < date '1994-08-01' + interval '3 month'\n      and l.l_returnflag = 'R'\n)\nselect\n    c_custkey,\n    c_name,\n    sum(l_extendedprice * (1 - l_discount)) as revenue,\n    c_acctbal,\n    n_name,\n    c_address,\n    c_phone,\n    c_comment\nfrom q10_rows\ngroup by\n    c_custkey,\n    c_name,\n    c_acctbal,\n    c_phone,\n    n_name,\n    c_address,\n    c_comment\norder by revenue desc\nlimit 20;\n",
-          "equivalence_rationale": "The CTE materializes the same filtered join rows the baseline would aggregate; the outer query performs the same grouping and sum over those rows.",
-          "risk_note": "Low risk while the CTE stays at lineitem grain. Do not add `distinct` or pre-aggregation inside it."
+          "sql_path": "query_compare/sql/q13_formulation_3_lateral_or_correlated_customer_counts.sql",
+          "sql": "select\n    customer_counts.c_count,\n    count(*) as custdist\nfrom (\n    select\n        c.c_custkey,\n        coalesce(order_counts.c_count, 0) as c_count\n    from\n        customer c\n    left join lateral (\n        select\n            count(*) as c_count\n        from\n            orders o\n        where\n            o.o_custkey = c.c_custkey\n            and o.o_comment not like '%pending%deposits%'\n    ) as order_counts\n        on true\n) as customer_counts\ngroup by\n    customer_counts.c_count\norder by\n    custdist desc,\n    customer_counts.c_count desc;\n",
+          "equivalence_rationale": "The lateral aggregate produces the same per-customer count that the baseline grouped left join would emit, including zero counts.",
+          "structural_change": "Uses a lateral per-customer aggregate instead of a grouped left join.",
+          "selection_reason": "Most different q13 plan shape while still preserving the histogram semantics exactly.",
+          "exclusion_guardrails": [
+            "The lateral subquery must return a single count row per customer.",
+            "Keep the final histogram and ordering unchanged."
+          ]
         }
       ],
-      "rejected_formulation_ideas": [
+      "rejected_formulations": [
         {
-          "idea": "Replace the lineitem join with `exists` or `in` against returned lineitems.",
-          "reason": "Converts a duplicate-preserving join into a semi-join and changes revenue accumulation."
+          "rewrite_family": "inner_join_rewrite",
+          "rejection_reason": "Dropping the left join would remove zero-order customers.",
+          "equivalence_concern": "Histogram would no longer include c_count = 0 customers."
         },
         {
-          "idea": "Replace the half-open 3-month window with `between`, `<=`, or `interval '90 day'`.",
-          "reason": "Changes the canonical interval semantics."
+          "rewrite_family": "where_clause_filter_pushdown",
+          "rejection_reason": "Moving the order comment filter into the outer WHERE clause is unsafe.",
+          "equivalence_concern": "Would convert the left join into effective inner-join behavior."
         },
         {
-          "idea": "Add `distinct` on joined rows or before aggregation.",
-          "reason": "Can remove legitimate duplicate contributing lineitems."
+          "rewrite_family": "count_star_rewrite",
+          "rejection_reason": "count(*) changes the null-sensitive counting behavior.",
+          "equivalence_concern": "Would overcount customers with no matching orders."
+        }
+      ]
+    },
+    {
+      "template_id": "q15",
+      "query_instance_id": "q15-q15-p0000-sf-1.0",
+      "parameter_set_id": "q15-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Max-of-aggregate pattern over supplier revenue with a stable order-by key. Equivalent rewrites can change how the maximum is derived without touching the supplier-grain result.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "All accepted rewrites preserve supplier-grain revenue and tie semantics while changing whether the max filter is scalar, joined, or ranked."
+      },
+      "baseline_sql_path": "query_compare/sql/q15_base.sql",
+      "baseline_sql": "with revenue0 (supplier_no, total_revenue) as (\n    select\n        l_suppkey,\n        sum(l_extendedprice * (1 - l_discount))\n    from\n        lineitem\n    where\n        l_shipdate >= date '1995-06-01'\n        and l_shipdate < date '1995-06-01' + interval '3 month'\n    group by\n        l_suppkey\n)\nselect\n    s_suppkey,\n    s_name,\n    s_address,\n    s_phone,\n    total_revenue\nfrom\n    supplier,\n    revenue0\nwhere\n    s_suppkey = supplier_no\n    and total_revenue = (\n        select\n            max(total_revenue)\n        from\n            revenue0\n    )\norder by\n    s_suppkey;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q15_alt_1",
+          "formulation_type": "cte_plus_scalar_max",
+          "rewrite_family": "aggregate_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q15_formulation_1_cte_plus_scalar_max.sql",
+          "sql": "with revenue0 as (\n    select\n        l.l_suppkey as supplier_no,\n        sum(l.l_extendedprice * (1 - l.l_discount)) as total_revenue\n    from\n        lineitem l\n    where\n        l.l_shipdate >= date '1995-06-01'\n        and l.l_shipdate < date '1995-06-01' + interval '3 month'\n    group by\n        l.l_suppkey\n),\nmax_revenue as (\n    select\n        max(total_revenue) as max_total_revenue\n    from\n        revenue0\n)\nselect\n    s.s_suppkey,\n    s.s_name,\n    s.s_address,\n    s.s_phone,\n    r.total_revenue\nfrom\n    supplier s\njoin revenue0 r\n    on s.s_suppkey = r.supplier_no\ncross join max_revenue m\nwhere\n    r.total_revenue = m.max_total_revenue\norder by\n    s.s_suppkey;\n",
+          "equivalence_rationale": "Revenue per supplier is unchanged, and the separate max CTE applies the same equality filter as the baseline scalar subquery.",
+          "structural_change": "Separates grouped supplier revenue and scalar max into sibling CTEs.",
+          "selection_reason": "Simple but structurally meaningful change to the max-selection path.",
+          "exclusion_guardrails": [
+            "Keep supplier revenue grouped exactly by supplier key.",
+            "Do not change the final supplier ordering."
+          ]
         },
         {
-          "idea": "Add extra sort keys such as `c_custkey` to stabilize ties.",
-          "reason": "Changes the baseline ordering contract."
+          "formulation_id": "q15_alt_2",
+          "formulation_type": "revenue_table_joined_to_max_table",
+          "rewrite_family": "derived_table_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q15_formulation_2_revenue_table_joined_to_max_table.sql",
+          "sql": "select\n    s.s_suppkey,\n    s.s_name,\n    s.s_address,\n    s.s_phone,\n    revenue0.total_revenue\nfrom\n    supplier s\njoin (\n    select\n        l.l_suppkey as supplier_no,\n        sum(l.l_extendedprice * (1 - l.l_discount)) as total_revenue\n    from\n        lineitem l\n    where\n        l.l_shipdate >= date '1995-06-01'\n        and l.l_shipdate < date '1995-06-01' + interval '3 month'\n    group by\n        l.l_suppkey\n) as revenue0\n    on s.s_suppkey = revenue0.supplier_no\njoin (\n    select\n        max(revenue_by_supplier.total_revenue) as max_total_revenue\n    from (\n        select\n            sum(l.l_extendedprice * (1 - l.l_discount)) as total_revenue\n        from\n            lineitem l\n        where\n            l.l_shipdate >= date '1995-06-01'\n            and l.l_shipdate < date '1995-06-01' + interval '3 month'\n        group by\n            l.l_suppkey\n    ) as revenue_by_supplier\n) as max_revenue\n    on revenue0.total_revenue = max_revenue.max_total_revenue\norder by\n    s.s_suppkey;\n",
+          "equivalence_rationale": "The revenue table and max-revenue table are both computed at supplier-grain semantics, then joined by equality to keep the same winners.",
+          "structural_change": "Replaces the scalar max filter with an explicit join to a max-revenue table.",
+          "selection_reason": "Forces a different aggregation boundary while preserving ties.",
+          "exclusion_guardrails": [
+            "Do not collapse tied suppliers to one row.",
+            "Keep the revenue window fixed to the same date interval."
+          ]
+        },
+        {
+          "formulation_id": "q15_alt_3",
+          "formulation_type": "ranked_revenue",
+          "rewrite_family": "window_after_safe_aggregation",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q15_formulation_3_ranked_revenue.sql",
+          "sql": "with revenue0 as (\n    select\n        l.l_suppkey as supplier_no,\n        sum(l.l_extendedprice * (1 - l.l_discount)) as total_revenue\n    from\n        lineitem l\n    where\n        l.l_shipdate >= date '1995-06-01'\n        and l.l_shipdate < date '1995-06-01' + interval '3 month'\n    group by\n        l.l_suppkey\n),\nranked_revenue as (\n    select\n        supplier_no,\n        total_revenue,\n        dense_rank() over (order by total_revenue desc) as revenue_rank\n    from\n        revenue0\n)\nselect\n    s.s_suppkey,\n    s.s_name,\n    s.s_address,\n    s.s_phone,\n    rr.total_revenue\nfrom\n    supplier s\njoin ranked_revenue rr\n    on s.s_suppkey = rr.supplier_no\nwhere\n    rr.revenue_rank = 1\norder by\n    s.s_suppkey;\n",
+          "equivalence_rationale": "dense_rank() after safe supplier-level aggregation preserves all suppliers tied at the maximum revenue.",
+          "structural_change": "Uses ranking over grouped revenue instead of a max-equality filter.",
+          "selection_reason": "Introduces an aggregate-plus-window plan while preserving tie semantics.",
+          "exclusion_guardrails": [
+            "Use dense_rank or rank, not row_number.",
+            "Preserve the final supplier ordering exactly."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "row_number_top_1",
+          "rejection_reason": "row_number() would keep only one tied supplier.",
+          "equivalence_concern": "Changes tie semantics relative to the baseline."
+        },
+        {
+          "rewrite_family": "interval_change",
+          "rejection_reason": "Changing the revenue window would alter the benchmark.",
+          "equivalence_concern": "Would change which lineitems contribute to revenue."
+        },
+        {
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "Deduplicating suppliers is not allowed.",
+          "equivalence_concern": "Would collapse valid tied winners."
+        }
+      ]
+    },
+    {
+      "template_id": "q17",
+      "query_instance_id": "q17-q17-p0000-sf-1.0",
+      "parameter_set_id": "q17-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Classic correlated aggregate decorrelation case with a single-row output. Safe rewrites exist if the average threshold remains defined over the full lineitem population for each qualifying part.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "Equivalent rewrites must preserve the per-part average threshold exactly and apply the quantity filter only after the threshold exists."
+      },
+      "baseline_sql_path": "query_compare/sql/q17_base.sql",
+      "baseline_sql": "select\n    sum(l_extendedprice) / 7.0 as avg_yearly\nfrom\n    lineitem,\n    part\nwhere\n    p_partkey = l_partkey\n    and p_brand = 'Brand#32'\n    and p_container = 'MED BOX'\n    and l_quantity < (\n        select\n            0.2 * avg(l_quantity)\n        from\n            lineitem\n        where\n            l_partkey = p_partkey\n    );\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q17_alt_1",
+          "formulation_type": "decorrelated_part_avg_join",
+          "rewrite_family": "decorrelation",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q17_formulation_1_decorrelated_part_avg_join.sql",
+          "sql": "with part_avg as (\n    select\n        l.l_partkey,\n        0.2 * avg(l.l_quantity) as quantity_threshold\n    from\n        lineitem l\n    group by\n        l.l_partkey\n)\nselect\n    sum(l.l_extendedprice) / 7.0 as avg_yearly\nfrom\n    part p\njoin lineitem l\n    on l.l_partkey = p.p_partkey\njoin part_avg pa\n    on pa.l_partkey = l.l_partkey\nwhere\n    p.p_brand = 'Brand#32'\n    and p.p_container = 'MED BOX'\n    and l.l_quantity < pa.quantity_threshold;\n",
+          "equivalence_rationale": "The correlated average is rewritten as one threshold row per part, then joined back before the outer quantity filter is applied.",
+          "structural_change": "Decorrelates the scalar aggregate into a per-part threshold relation.",
+          "selection_reason": "Research-backed high-value decorrelation rewrite with clear PostgreSQL plan-shape impact.",
+          "exclusion_guardrails": [
+            "Average over all lineitems for the part, not only surviving outer rows.",
+            "Apply the quantity filter after the threshold relation is formed."
+          ]
+        },
+        {
+          "formulation_id": "q17_alt_2",
+          "formulation_type": "window_avg_threshold",
+          "rewrite_family": "window_after_safe_join",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q17_formulation_2_window_avg_threshold.sql",
+          "sql": "with filtered_lineitems as (\n    select\n        l.l_extendedprice,\n        l.l_quantity,\n        avg(l.l_quantity) over (partition by l.l_partkey) as avg_part_quantity\n    from\n        part p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    where\n        p.p_brand = 'Brand#32'\n        and p.p_container = 'MED BOX'\n)\nselect\n    sum(l_extendedprice) / 7.0 as avg_yearly\nfrom\n    filtered_lineitems\nwhere\n    l_quantity < 0.2 * avg_part_quantity;\n",
+          "equivalence_rationale": "The window average is computed over each qualifying part partition before the same threshold comparison is applied.",
+          "structural_change": "Replaces the correlated aggregate with a partitioned window average at lineitem grain.",
+          "selection_reason": "Likely to yield a distinct window-based plan while preserving the single-row result.",
+          "exclusion_guardrails": [
+            "Window partition must be by part key.",
+            "Do not push the outer quantity filter below the window aggregate."
+          ]
+        },
+        {
+          "formulation_id": "q17_alt_3",
+          "formulation_type": "filtered_parts_then_avg_join",
+          "rewrite_family": "selective_subgraph_plus_decorrelation",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q17_formulation_3_filtered_parts_then_avg_join.sql",
+          "sql": "with target_parts as (\n    select\n        p_partkey\n    from\n        part\n    where\n        p_brand = 'Brand#32'\n        and p_container = 'MED BOX'\n),\npart_avg as (\n    select\n        l.l_partkey,\n        0.2 * avg(l.l_quantity) as quantity_threshold\n    from\n        target_parts p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    group by\n        l.l_partkey\n)\nselect\n    sum(l.l_extendedprice) / 7.0 as avg_yearly\nfrom\n    target_parts p\njoin lineitem l\n    on l.l_partkey = p.p_partkey\njoin part_avg pa\n    on pa.l_partkey = l.l_partkey\nwhere\n    l.l_quantity < pa.quantity_threshold;\n",
+          "equivalence_rationale": "The target parts are filtered first, then the per-part threshold is computed and joined back over exactly that same part set.",
+          "structural_change": "Separates part filtering from threshold aggregation before the final join-back.",
+          "selection_reason": "Adds another safe decorrelation shape with an explicit selective part subgraph.",
+          "exclusion_guardrails": [
+            "Restrict only on part attributes before aggregation.",
+            "Preserve the same aggregate expression and final scalar output."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "Using EXISTS/IN as the primary rewrite family is out of scope for this benchmark.",
+          "planner_reason": "Would blur duplicate-preserving semantics versus semijoin behavior."
+        },
+        {
+          "rewrite_family": "early_quantity_filter",
+          "rejection_reason": "Filtering quantity before computing the average is not equivalent.",
+          "equivalence_concern": "Would change the threshold itself."
+        },
+        {
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "Deduplicating lineitems is not allowed.",
+          "equivalence_concern": "Would change the summed extendedprice result."
         }
       ]
     }

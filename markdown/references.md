@@ -55,3 +55,39 @@
 - `Repository pipeline dependency check (2026-03-23)`
   Useful for confirming which downstream stages consume the raw `sf_*` collection artifacts and therefore must be rerun after recollecting scale factor `0.1`.
   Source: Local repository files `src/ivory/sql_features.py`, `src/ivory/plan_features.py`, `src/ivory/dataset_assembly.py`, `src/ivory/baseline_modeling.py`, and `README.md`
+
+- `PostgreSQL WITH query materialization`
+  Useful for deciding which CTE and derived-table rewrites are likely to remain structurally meaningful in PostgreSQL rather than being treated as trivial syntax wrappers.
+  Source: [PostgreSQL 16 documentation: 7.8 WITH Queries](https://www.postgresql.org/docs/16/queries-with.html)
+
+- `PostgreSQL subquery semantics`
+  Useful for excluding `EXISTS`, `IN`, and `NOT IN` rewrite families that can change duplicate or null semantics relative to duplicate-preserving joins.
+  Source: [PostgreSQL 16 documentation: 9.24 Subquery Expressions](https://www.postgresql.org/docs/16/functions-subquery.html)
+
+- `PostgreSQL ordering semantics`
+  Useful for treating row order as part of the equivalence contract and excluding fragile top-N rewrites where ordering is not fully determined.
+  Source: [PostgreSQL 16 documentation: 7.5 Sorting Rows](https://www.postgresql.org/docs/16/queries-order.html)
+
+- `Including Group-By in Query Optimization (Chaudhuri and Shim, VLDB 1994)`
+  Useful for justifying safe early-group-by and aggregate-factoring rewrites on subgraphs where grouping keys preserve downstream semantics.
+  Source: [Including Group-By in Query Optimization](https://www.microsoft.com/en-us/research/publication/including-group-by-in-query-optimization/)
+
+- `Performing Group-by before Join (Yan and Larson, 1994)`
+  Useful for the benchmark's pre-aggregation rewrite families and the conditions under which aggregate-before-join is semantically valid.
+  Source: [Performing Group-by before Join](https://www.microsoft.com/en-us/research/publication/performing-group-by-before-join/)
+
+- `Unnesting Arbitrary Queries (Neumann and Kemper, 2015)`
+  Useful for decorrelation-based rewrite families such as the accepted `q17` alternatives and for reasoning about planner-relevant structural changes to nested-query forms.
+  Source: [Unnesting Arbitrary Queries](https://portal.fis.tum.de/en/publications/unnesting-arbitrary-queries/)
+
+- `A Practical Approach to Groupjoin and Nested Aggregates (Fent and Neumann, PVLDB 2021)`
+  Useful for the `q13`-style outer-join-plus-aggregate rewrites where preserving zero-match rows and nested aggregate semantics is essential.
+  Source: [A Practical Approach to Groupjoin and Nested Aggregates](https://vldb.org/pvldb/vol14/p2383-fent.pdf)
+
+- `Query compare baseline source artifact (2026-04-05)`
+  Useful for extracting the exact rendered `p0000` SQL text used as the baseline source for the `q13`, `q15`, and `q17` query-compare inputs at scale factor `1.0`.
+  Source: Local repository artifact `artifacts/raw/sf_1_0/raw_runs.parquet`
+
+- `Rendered q9/q11 p0000 SQL provenance (2026-04-05)`
+  Useful for grounding the query-compare SQL rewrites in the exact rendered baseline text selected from the scale-factor 1.0 raw collection artifact.
+  Source: Local artifact `artifacts/raw/sf_1_0/raw_runs.parquet`

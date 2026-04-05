@@ -133,12 +133,14 @@ def load_formulations(*, benchmark_path: Path) -> list[Formulation]:
                 parameter_set_id=parameter_set_id,
                 scale_factor=scale_factor,
                 sql_text=str(template["baseline_sql"]),
-                sql_path=f"query_compare/sql/{template_id}_base.sql",
+                sql_path=str(
+                    template.get(
+                        "baseline_sql_path", f"query_compare/sql/{template_id}_base.sql"
+                    )
+                ),
             )
         )
-        for index, alternative in enumerate(
-            template["accepted_formulations"], start=1
-        ):
+        for index, alternative in enumerate(template["accepted_formulations"], start=1):
             formulation_type = str(alternative["formulation_type"])
             formulations.append(
                 Formulation(
@@ -148,9 +150,14 @@ def load_formulations(*, benchmark_path: Path) -> list[Formulation]:
                     parameter_set_id=parameter_set_id,
                     scale_factor=scale_factor,
                     sql_text=str(alternative["sql"]),
-                    sql_path=(
-                        "query_compare/sql/"
-                        f"{template_id}_formulation_{index}_{formulation_type}.sql"
+                    sql_path=str(
+                        alternative.get(
+                            "sql_path",
+                            (
+                                "query_compare/sql/"
+                                f"{template_id}_formulation_{index}_{formulation_type}.sql"
+                            ),
+                        )
                     ),
                 )
             )
@@ -254,20 +261,22 @@ def build_feature_frame(
 def rank_within_template(
     rows: list[dict[str, Any]], *, value_key: str, rank_key: str
 ) -> None:
-    """Assign deterministic ordinal ranks within each template."""
+    """Assign dense ranks within each template, preserving ties."""
     by_template: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         by_template.setdefault(str(row["template_id"]), []).append(row)
     for template_rows in by_template.values():
         ordered = sorted(
-            template_rows,
-            key=lambda row: (
-                float(row[value_key]),
-                str(row["formulation_id"]),
-            ),
+            template_rows, key=lambda row: float(row[value_key])
         )
-        for index, row in enumerate(ordered, start=1):
-            row[rank_key] = index
+        previous_value: float | None = None
+        current_rank = 0
+        for row in ordered:
+            value = float(row[value_key])
+            if previous_value is None or value != previous_value:
+                current_rank += 1
+                previous_value = value
+            row[rank_key] = current_rank
 
 
 def rank_within_template_if_present(
@@ -314,24 +323,27 @@ def add_baseline_deltas(rows: list[dict[str, Any]]) -> None:
         )
 
 
-def _winner_for_metric(
+def _winner_rows_for_metric(
     rows: list[dict[str, Any]], *, metric_key: str
-) -> dict[str, Any] | None:
+) -> list[dict[str, Any]]:
     available_rows = [row for row in rows if row.get(metric_key) is not None]
     if not available_rows:
-        return None
-    return min(
-        available_rows,
-        key=lambda row: (
-            float(row[metric_key]),
-            str(row["formulation_id"]),
-        ),
+        return []
+    best_value = min(float(row[metric_key]) for row in available_rows)
+    return sorted(
+        [
+            row
+            for row in available_rows
+            if float(row[metric_key]) == best_value
+        ],
+        key=lambda row: str(row["formulation_id"]),
     )
 
 
-def _rank_correlation(
+def _dense_rank_correlation(
     rows: list[dict[str, Any]], *, left_rank_key: str, right_rank_key: str
 ) -> float | None:
+    """Return Pearson correlation over dense-rank vectors for comparable rows."""
     paired_rows = [
         row
         for row in rows
@@ -374,23 +386,50 @@ def build_summary(
         baseline = next(
             row for row in template_rows if row["formulation_kind"] == "baseline"
         )
-        best_predicted = _winner_for_metric(
+        best_predicted_rows = _winner_rows_for_metric(
             template_rows, metric_key="model_predicted_cost"
         )
-        best_planner = _winner_for_metric(
+        best_planner_rows = _winner_rows_for_metric(
             template_rows, metric_key="planner_total_cost"
         )
-        best_runtime = _winner_for_metric(
+        best_runtime_rows = _winner_rows_for_metric(
             template_rows, metric_key="execution_time_ms"
         )
+        best_predicted_ids = [
+            str(row["formulation_id"]) for row in best_predicted_rows
+        ]
+        best_planner_ids = [
+            str(row["formulation_id"]) for row in best_planner_rows
+        ]
+        best_runtime_ids = [
+            str(row["formulation_id"]) for row in best_runtime_rows
+        ]
         best_predicted_id = (
-            str(best_predicted["formulation_id"]) if best_predicted is not None else None
+            best_predicted_ids[0] if len(best_predicted_ids) == 1 else None
         )
-        best_planner_id = (
-            str(best_planner["formulation_id"]) if best_planner is not None else None
+        best_planner_id = best_planner_ids[0] if len(best_planner_ids) == 1 else None
+        best_runtime_id = best_runtime_ids[0] if len(best_runtime_ids) == 1 else None
+        planner_vs_model_agree = (
+            best_planner_id == best_predicted_id
+            if best_planner_id is not None and best_predicted_id is not None
+            else None
         )
-        best_runtime_id = (
-            str(best_runtime["formulation_id"]) if best_runtime is not None else None
+        planner_vs_runtime_agree = (
+            best_planner_id == best_runtime_id
+            if best_planner_id is not None and best_runtime_id is not None
+            else None
+        )
+        model_vs_runtime_agree = (
+            best_predicted_id == best_runtime_id
+            if best_predicted_id is not None and best_runtime_id is not None
+            else None
+        )
+        all_signals_agree = (
+            best_planner_id == best_predicted_id == best_runtime_id
+            if best_planner_id is not None
+            and best_predicted_id is not None
+            and best_runtime_id is not None
+            else None
         )
         templates.append(
             {
@@ -398,47 +437,42 @@ def build_summary(
                 "baseline_formulation_id": baseline["formulation_id"],
                 "baseline_predicted_cost": baseline["model_predicted_cost"],
                 "baseline_execution_time_ms": baseline["execution_time_ms"],
+                "best_predicted_formulation_ids": best_predicted_ids,
                 "best_predicted_formulation_id": best_predicted_id,
                 "best_predicted_cost": (
-                    best_predicted["model_predicted_cost"]
-                    if best_predicted is not None
+                    best_predicted_rows[0]["model_predicted_cost"]
+                    if best_predicted_rows
                     else None
                 ),
+                "best_planner_formulation_ids": best_planner_ids,
                 "best_planner_formulation_id": best_planner_id,
                 "best_planner_total_cost": (
-                    best_planner["planner_total_cost"]
-                    if best_planner is not None
+                    best_planner_rows[0]["planner_total_cost"]
+                    if best_planner_rows
                     else None
                 ),
+                "best_execution_time_formulation_ids": best_runtime_ids,
                 "best_execution_time_formulation_id": best_runtime_id,
                 "best_execution_time_ms": (
-                    best_runtime["execution_time_ms"]
-                    if best_runtime is not None
+                    best_runtime_rows[0]["execution_time_ms"]
+                    if best_runtime_rows
                     else None
                 ),
-                "planner_vs_model_agree": best_planner_id == best_predicted_id,
-                "planner_vs_runtime_agree": (
-                    best_runtime_id is not None and best_planner_id == best_runtime_id
-                ),
-                "model_vs_runtime_agree": (
-                    best_runtime_id is not None
-                    and best_predicted_id == best_runtime_id
-                ),
-                "all_signals_agree": (
-                    best_runtime_id is not None
-                    and best_planner_id == best_predicted_id == best_runtime_id
-                ),
-                "planner_vs_model_rank_correlation": _rank_correlation(
+                "planner_vs_model_agree": planner_vs_model_agree,
+                "planner_vs_runtime_agree": planner_vs_runtime_agree,
+                "model_vs_runtime_agree": model_vs_runtime_agree,
+                "all_signals_agree": all_signals_agree,
+                "planner_vs_model_dense_rank_correlation": _dense_rank_correlation(
                     template_rows,
                     left_rank_key="planner_total_cost_rank",
                     right_rank_key="model_predicted_cost_rank",
                 ),
-                "planner_vs_runtime_rank_correlation": _rank_correlation(
+                "planner_vs_runtime_dense_rank_correlation": _dense_rank_correlation(
                     template_rows,
                     left_rank_key="planner_total_cost_rank",
                     right_rank_key="execution_time_ms_rank",
                 ),
-                "model_vs_runtime_rank_correlation": _rank_correlation(
+                "model_vs_runtime_dense_rank_correlation": _dense_rank_correlation(
                     template_rows,
                     left_rank_key="model_predicted_cost_rank",
                     right_rank_key="execution_time_ms_rank",
@@ -472,10 +506,18 @@ def predict_query_compare_costs(
     model_family, feature_columns, estimator = load_selected_estimator(
         manifest_path=manifest_path
     )
+    formulations = load_formulations(benchmark_path=benchmark_path)
     rows: list[dict[str, Any]] = []
     explain_dir.mkdir(parents=True, exist_ok=True)
+    expected_explain_paths = {
+        explain_dir / f"{formulation.formulation_id}.json"
+        for formulation in formulations
+    }
+    for stale_path in explain_dir.glob("*.json"):
+        if stale_path not in expected_explain_paths:
+            stale_path.unlink()
 
-    for formulation in load_formulations(benchmark_path=benchmark_path):
+    for formulation in formulations:
         sql_path = ROOT_DIR / formulation.sql_path
         if not sql_path.exists():
             raise FileNotFoundError(

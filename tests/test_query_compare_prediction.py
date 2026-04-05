@@ -58,11 +58,16 @@ def test_load_formulations_uses_query_compare_paths(tmp_path: Path) -> None:
                         "parameter_set_id": "q3-p0000",
                         "scale_factor": 1.0,
                         "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/custom_q3_base.sql",
                         "accepted_formulations": [
                             {
                                 "formulation_id": "q3_alt_1",
                                 "formulation_type": "explicit_inner_join",
                                 "sql": "select 2;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "custom_q3_formulation.sql"
+                                ),
                             }
                         ],
                     }
@@ -77,11 +82,8 @@ def test_load_formulations_uses_query_compare_paths(tmp_path: Path) -> None:
         "baseline",
         "q3_alt_1",
     ]
-    assert formulations[0].sql_path == "query_compare/sql/q3_base.sql"
-    assert (
-        formulations[1].sql_path
-        == "query_compare/sql/q3_formulation_1_explicit_inner_join.sql"
-    )
+    assert formulations[0].sql_path == "query_compare/sql/custom_q3_base.sql"
+    assert formulations[1].sql_path == "query_compare/sql/custom_q3_formulation.sql"
 
 
 def test_query_compare_validation_parser_defaults_use_query_compare_paths() -> None:
@@ -178,11 +180,16 @@ def test_predict_query_compare_costs_writes_ranked_outputs(
                         "parameter_set_id": "q3-p0000",
                         "scale_factor": 1.0,
                         "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/q3_base.sql",
                         "accepted_formulations": [
                             {
                                 "formulation_id": "q3_alt_1",
                                 "formulation_type": "explicit_inner_join",
                                 "sql": "select 2;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "q3_formulation_1_explicit_inner_join.sql"
+                                ),
                             }
                         ],
                     }
@@ -301,9 +308,11 @@ def test_predict_query_compare_costs_writes_ranked_outputs(
     assert summary["templates"][0]["planner_vs_runtime_agree"] is True
     assert summary["templates"][0]["model_vs_runtime_agree"] is True
     assert summary["templates"][0]["all_signals_agree"] is True
-    assert summary["templates"][0]["planner_vs_model_rank_correlation"] == 1.0
-    assert summary["templates"][0]["planner_vs_runtime_rank_correlation"] == 1.0
-    assert summary["templates"][0]["model_vs_runtime_rank_correlation"] == 1.0
+    assert summary["templates"][0]["planner_vs_model_dense_rank_correlation"] == 1.0
+    assert (
+        summary["templates"][0]["planner_vs_runtime_dense_rank_correlation"] == 1.0
+    )
+    assert summary["templates"][0]["model_vs_runtime_dense_rank_correlation"] == 1.0
 
 
 def test_predict_query_compare_costs_defaults_runtime_fields_to_null(
@@ -319,11 +328,16 @@ def test_predict_query_compare_costs_defaults_runtime_fields_to_null(
                         "parameter_set_id": "q3-p0000",
                         "scale_factor": 1.0,
                         "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/q3_base.sql",
                         "accepted_formulations": [
                             {
                                 "formulation_id": "q3_alt_1",
                                 "formulation_type": "explicit_inner_join",
                                 "sql": "select 2;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "q3_formulation_1_explicit_inner_join.sql"
+                                ),
                             }
                         ],
                     }
@@ -416,8 +430,8 @@ def test_predict_query_compare_costs_defaults_runtime_fields_to_null(
     summary_document = json.loads(summary_output_path.read_text())
     assert summary_document["runtime_collection_enabled"] is False
     assert summary["templates"][0]["best_execution_time_formulation_id"] is None
-    assert summary["templates"][0]["planner_vs_runtime_rank_correlation"] is None
-    assert summary["templates"][0]["model_vs_runtime_rank_correlation"] is None
+    assert summary["templates"][0]["planner_vs_runtime_dense_rank_correlation"] is None
+    assert summary["templates"][0]["model_vs_runtime_dense_rank_correlation"] is None
 
 
 def test_predict_query_compare_costs_summary_handles_runtime_disagreement(
@@ -433,16 +447,25 @@ def test_predict_query_compare_costs_summary_handles_runtime_disagreement(
                         "parameter_set_id": "q3-p0000",
                         "scale_factor": 1.0,
                         "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/q3_base.sql",
                         "accepted_formulations": [
                             {
                                 "formulation_id": "q3_alt_1",
                                 "formulation_type": "explicit_inner_join",
                                 "sql": "select 2;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "q3_formulation_1_explicit_inner_join.sql"
+                                ),
                             },
                             {
                                 "formulation_id": "q3_alt_2",
                                 "formulation_type": "single_table_filter_ctes",
                                 "sql": "select 3;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "q3_formulation_2_single_table_filter_ctes.sql"
+                                ),
                             },
                         ],
                     }
@@ -558,6 +581,195 @@ def test_predict_query_compare_costs_summary_handles_runtime_disagreement(
     assert template_summary["planner_vs_runtime_agree"] is False
     assert template_summary["model_vs_runtime_agree"] is False
     assert template_summary["all_signals_agree"] is False
-    assert template_summary["planner_vs_model_rank_correlation"] == 1.0
-    assert template_summary["planner_vs_runtime_rank_correlation"] == -0.5
-    assert template_summary["model_vs_runtime_rank_correlation"] == -0.5
+    assert template_summary["planner_vs_model_dense_rank_correlation"] == 1.0
+    assert template_summary["planner_vs_runtime_dense_rank_correlation"] == -0.5
+    assert template_summary["model_vs_runtime_dense_rank_correlation"] == -0.5
+
+
+def test_predict_query_compare_costs_summary_treats_tied_winners_as_ambiguous(
+    monkeypatch, tmp_path: Path
+) -> None:
+    benchmark_path = tmp_path / "benchmark.json"
+    benchmark_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "template_id": "q3",
+                        "parameter_set_id": "q3-p0000",
+                        "scale_factor": 1.0,
+                        "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/q3_base.sql",
+                        "accepted_formulations": [
+                            {
+                                "formulation_id": "q3_alt_1",
+                                "formulation_type": "explicit_inner_join",
+                                "sql": "select 2;\n",
+                                "sql_path": (
+                                    "query_compare/sql/"
+                                    "q3_formulation_1_explicit_inner_join.sql"
+                                ),
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    output_path = tmp_path / "predictions.parquet"
+    summary_output_path = tmp_path / "predictions.json"
+    explain_dir = tmp_path / "explains"
+    manifest_path = tmp_path / "training_manifest.json"
+
+    class FakeEstimator:
+        def predict(self, matrix: Any) -> list[float]:
+            return [10.0]
+
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "load_selected_estimator",
+        lambda **_: ("random_forest", ["feature_0"], FakeEstimator()),
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "fetch_explain_plan",
+        lambda **kwargs: {
+            "Plan": {
+                "Node Type": "Seq Scan",
+                "Plan Rows": 10,
+                "Plan Width": 5,
+                "Startup Cost": 0.0,
+                "Total Cost": 10.0,
+            },
+            "Execution Time": 5.0,
+        },
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "build_feature_frame",
+        lambda **kwargs: pl.DataFrame([{"feature_0": 10.0}]),
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "flatten_modeling_dataset",
+        lambda feature_df: (feature_df, feature_df.columns),
+    )
+    original_root = query_compare_prediction.ROOT_DIR
+    query_compare_prediction.ROOT_DIR = tmp_path
+    (tmp_path / "query_compare" / "sql").mkdir(parents=True)
+    (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
+    (
+        tmp_path
+        / "query_compare"
+        / "sql"
+        / "q3_formulation_1_explicit_inner_join.sql"
+    ).write_text("select 2;\n")
+
+    try:
+        summary = query_compare_prediction.predict_query_compare_costs(
+            benchmark_path=benchmark_path,
+            database="tpch_sf_1",
+            output_path=output_path,
+            summary_output_path=summary_output_path,
+            explain_dir=explain_dir,
+            manifest_path=manifest_path,
+            analyze=True,
+        )
+    finally:
+        query_compare_prediction.ROOT_DIR = original_root
+
+    template_summary = summary["templates"][0]
+    assert template_summary["best_predicted_formulation_ids"] == [
+        "baseline",
+        "q3_alt_1",
+    ]
+    assert template_summary["best_predicted_formulation_id"] is None
+    assert template_summary["best_planner_formulation_ids"] == [
+        "baseline",
+        "q3_alt_1",
+    ]
+    assert template_summary["best_planner_formulation_id"] is None
+    assert template_summary["planner_vs_model_agree"] is None
+    assert template_summary["all_signals_agree"] is None
+    assert template_summary["planner_vs_model_dense_rank_correlation"] is None
+
+
+def test_predict_query_compare_costs_removes_stale_explain_artifacts(
+    monkeypatch, tmp_path: Path
+) -> None:
+    benchmark_path = tmp_path / "benchmark.json"
+    benchmark_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "template_id": "q3",
+                        "parameter_set_id": "q3-p0000",
+                        "scale_factor": 1.0,
+                        "baseline_sql": "select 1;\n",
+                        "baseline_sql_path": "query_compare/sql/q3_base.sql",
+                        "accepted_formulations": [],
+                    }
+                ]
+            }
+        )
+    )
+    output_path = tmp_path / "predictions.parquet"
+    summary_output_path = tmp_path / "predictions.json"
+    explain_dir = tmp_path / "explains"
+    explain_dir.mkdir()
+    stale_explain = explain_dir / "stale.json"
+    stale_explain.write_text("{}\n")
+    manifest_path = tmp_path / "training_manifest.json"
+
+    class FakeEstimator:
+        def predict(self, matrix: Any) -> list[float]:
+            return [10.0]
+
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "load_selected_estimator",
+        lambda **_: ("random_forest", ["feature_0"], FakeEstimator()),
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "fetch_explain_plan",
+        lambda **kwargs: {
+            "Plan": {
+                "Node Type": "Seq Scan",
+                "Plan Rows": 10,
+                "Plan Width": 5,
+                "Startup Cost": 0.0,
+                "Total Cost": 10.0,
+            }
+        },
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "build_feature_frame",
+        lambda **kwargs: pl.DataFrame([{"feature_0": 10.0}]),
+    )
+    monkeypatch.setattr(
+        query_compare_prediction,
+        "flatten_modeling_dataset",
+        lambda feature_df: (feature_df, feature_df.columns),
+    )
+    original_root = query_compare_prediction.ROOT_DIR
+    query_compare_prediction.ROOT_DIR = tmp_path
+    (tmp_path / "query_compare" / "sql").mkdir(parents=True)
+    (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
+
+    try:
+        query_compare_prediction.predict_query_compare_costs(
+            benchmark_path=benchmark_path,
+            database="tpch_sf_1",
+            output_path=output_path,
+            summary_output_path=summary_output_path,
+            explain_dir=explain_dir,
+            manifest_path=manifest_path,
+        )
+    finally:
+        query_compare_prediction.ROOT_DIR = original_root
+
+    assert stale_explain.exists() is False
+    assert (explain_dir / "q3__baseline.json").exists() is True
