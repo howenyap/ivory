@@ -1,0 +1,195 @@
+{
+  "artifact_name": "query_compare_benchmark",
+  "artifact_version": 1,
+  "scope": "query_formulation_comparison_only",
+  "description": "Human-reviewed query-comparison benchmark for three rendered TPC-H query instances. This artifact captures baseline SQL, three low-risk alternative formulations per template, and rejected formulation ideas. It does not claim empirical equivalence yet; the next phase must validate exact output equality, including row order, on the target database.",
+  "defaults": {
+    "scale_factor": 1.0,
+    "parameter_set_id": "p0000",
+    "equivalence_standard": "same columns, same values, same row multiplicities, and same row ordering for the same parameter instance and database state",
+    "completed_phases": [
+      "query formulation",
+      "logical review"
+    ],
+    "next_phase_requirements": [
+      "exact output comparison including row order",
+      "EXPLAIN (FORMAT JSON) collection",
+      "estimator scoring"
+    ]
+  },
+  "source_provenance": {
+    "rendered_query_source": "artifacts/raw/sf_1_0/raw_runs.parquet",
+    "rendered_query_selection_policy": "first successful q3/q5/q10 query_instance_id at scale factor 1.0 with parameter_set_id qN-p0000",
+    "canonical_template_reference": "https://github.com/electrum/tpch-dbgen"
+  },
+  "templates": [
+    {
+      "template_id": "q3",
+      "query_instance_id": "q3-q3-p0000-sf-1.0",
+      "parameter_set_id": "q3-p0000",
+      "scale_factor": 1.0,
+      "baseline_suitability": {
+        "status": "accepted_with_ordering_caveat",
+        "summary": "Good formulation seed: inner joins, row-local filters, aggregate after join formation, and explicit top-N ordering. Safe alternative formulations must preserve duplicate-producing joins and the exact `order by revenue desc, o_orderdate limit 10` contract.",
+        "ordering_caveat": "Ties beyond `revenue desc, o_orderdate` remain unspecified by the baseline. The next phase must empirically confirm stable ordered output for the chosen parameter instance."
+      },
+      "baseline_sql": "select\n\tl_orderkey,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue,\n\to_orderdate,\n\to_shippriority\nfrom\n\tcustomer,\n\torders,\n\tlineitem\nwhere\n\tc_mktsegment = 'MACHINERY'\n\tand c_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand o_orderdate < date '1995-03-25'\n\tand l_shipdate > date '1995-03-25'\ngroup by\n\tl_orderkey,\n\to_orderdate,\n\to_shippriority\norder by\n\trevenue desc,\n\to_orderdate\nlimit 10;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q3_alt_1",
+          "formulation_type": "explicit_inner_join",
+          "logical_review_status": "accepted",
+          "sql": "select\n    l.l_orderkey,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom customer c\njoin orders o\n  on c.c_custkey = o.o_custkey\njoin lineitem l\n  on l.l_orderkey = o.o_orderkey\nwhere c.c_mktsegment = 'MACHINERY'\n  and o.o_orderdate < date '1995-03-25'\n  and l.l_shipdate > date '1995-03-25'\ngroup by\n    l.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
+          "equivalence_rationale": "Pure syntax normalization from comma joins to explicit inner joins. Join graph, filters, grouping, aggregate expression, ordering, and limit are unchanged.",
+          "risk_note": "Very low risk. Preserve the exact sort keys and avoid changing join type."
+        },
+        {
+          "formulation_id": "q3_alt_2",
+          "formulation_type": "single_table_filter_ctes",
+          "logical_review_status": "accepted",
+          "sql": "with\nc as (\n    select *\n    from customer\n    where c_mktsegment = 'MACHINERY'\n),\no as (\n    select *\n    from orders\n    where o_orderdate < date '1995-03-25'\n),\nl as (\n    select *\n    from lineitem\n    where l_shipdate > date '1995-03-25'\n)\nselect\n    l.l_orderkey,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom c\njoin o\n  on c.c_custkey = o.o_custkey\njoin l\n  on l.l_orderkey = o.o_orderkey\ngroup by\n    l.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
+          "equivalence_rationale": "Each CTE applies only a row-local predicate to one base table before the same joins. No projection, deduplication, or aggregation is introduced before joining.",
+          "risk_note": "Low risk. Keep the CTEs filter-only."
+        },
+        {
+          "formulation_id": "q3_alt_3",
+          "formulation_type": "lineitem_preaggregation_cte",
+          "logical_review_status": "accepted",
+          "sql": "with lineitem_rev as (\n    select\n        l_orderkey,\n        sum(l_extendedprice * (1 - l_discount)) as order_revenue\n    from lineitem\n    where l_shipdate > date '1995-03-25'\n    group by l_orderkey\n)\nselect\n    lr.l_orderkey,\n    sum(lr.order_revenue) as revenue,\n    o.o_orderdate,\n    o.o_shippriority\nfrom customer c\njoin orders o\n  on c.c_custkey = o.o_custkey\njoin lineitem_rev lr\n  on lr.l_orderkey = o.o_orderkey\nwhere c.c_mktsegment = 'MACHINERY'\n  and o.o_orderdate < date '1995-03-25'\ngroup by\n    lr.l_orderkey,\n    o.o_orderdate,\n    o.o_shippriority\norder by\n    revenue desc,\n    o.o_orderdate\nlimit 10;\n",
+          "equivalence_rationale": "Only additive lineitem revenue per order is pre-aggregated after the lineitem-local filter. The outer aggregate remains to preserve any downstream duplication introduced by later joins.",
+          "risk_note": "Slightly more structural but still acceptable. Do not drop the outer `sum(...)` or outer `group by`."
+        }
+      ],
+      "rejected_formulation_ideas": [
+        {
+          "idea": "Replace the customer join with `exists (...)` or `in (select ...)`.",
+          "reason": "Converts a duplicate-preserving join into a semi-join and can change multiplicity."
+        },
+        {
+          "idea": "Add `distinct` or `distinct on (...)`.",
+          "reason": "The baseline preserves duplicates; deduplication can change results and ordering behavior."
+        },
+        {
+          "idea": "Use `fetch first 10 rows with ties` or a window-function top-N reformulation.",
+          "reason": "Changes tie handling relative to plain `limit 10`."
+        },
+        {
+          "idea": "Add an extra tie-breaker such as `l_orderkey` to the `order by`.",
+          "reason": "Strengthens the ordering contract beyond the baseline."
+        }
+      ]
+    },
+    {
+      "template_id": "q5",
+      "query_instance_id": "q5-q5-p0000-sf-1.0",
+      "parameter_set_id": "q5-p0000",
+      "scale_factor": 1.0,
+      "baseline_suitability": {
+        "status": "accepted_with_ordering_caveat",
+        "summary": "Suitable for low-risk alternative formulations: all inner joins, one grouped aggregate, and a preserved half-open one-year date range. Safety depends on preserving duplicate-propagating join behavior across `nation` and `region`.",
+        "ordering_caveat": "The baseline orders only by `revenue desc`. The next phase must confirm that the chosen parameter instance does not rely on unspecified tie ordering."
+      },
+      "baseline_sql": "select\n\tn_name,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue\nfrom\n\tcustomer,\n\torders,\n\tlineitem,\n\tsupplier,\n\tnation,\n\tregion\nwhere\n\tc_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand l_suppkey = s_suppkey\n\tand c_nationkey = s_nationkey\n\tand s_nationkey = n_nationkey\n\tand n_regionkey = r_regionkey\n\tand r_name = 'ASIA'\n\tand o_orderdate >= date '1994-01-01'\n\tand o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by\n\tn_name\norder by\n\trevenue desc;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q5_alt_1",
+          "formulation_type": "explicit_inner_join",
+          "logical_review_status": "accepted",
+          "sql": "select\n    n.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom customer c\njoin orders o\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin nation n\n    on s.s_nationkey = n.n_nationkey\njoin region r\n    on n.n_regionkey = r.r_regionkey\nwhere c.c_nationkey = s.s_nationkey\n  and r.r_name = 'ASIA'\n  and o.o_orderdate >= date '1994-01-01'\n  and o.o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by n.n_name\norder by revenue desc;\n",
+          "equivalence_rationale": "Pure join syntax normalization. Join predicates, date window, grouped aggregate, and ordering are unchanged.",
+          "risk_note": "Very low risk. Preserve the date interval exactly."
+        },
+        {
+          "formulation_id": "q5_alt_2",
+          "formulation_type": "orders_filter_cte",
+          "logical_review_status": "accepted",
+          "sql": "with filtered_orders as (\n    select o_orderkey, o_custkey\n    from orders\n    where o_orderdate >= date '1994-01-01'\n      and o_orderdate < date '1994-01-01' + interval '1 year'\n)\nselect\n    n.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom filtered_orders o\njoin customer c\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin nation n\n    on s.s_nationkey = n.n_nationkey\njoin region r\n    on n.n_regionkey = r.r_regionkey\nwhere c.c_nationkey = s.s_nationkey\n  and r.r_name = 'ASIA'\ngroup by n.n_name\norder by revenue desc;\n",
+          "equivalence_rationale": "The CTE is a row-preserving selection on `orders` before the same joins. No `distinct` or aggregation is introduced.",
+          "risk_note": "Low risk. Safe while the CTE remains a simple filter and projection."
+        },
+        {
+          "formulation_id": "q5_alt_3",
+          "formulation_type": "asia_dimension_cte",
+          "logical_review_status": "accepted",
+          "sql": "with asia_nation as (\n    select n.n_nationkey, n.n_name\n    from nation n\n    join region r\n        on n.n_regionkey = r.r_regionkey\n    where r.r_name = 'ASIA'\n)\nselect\n    an.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom customer c\njoin orders o\n    on c.c_custkey = o.o_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin supplier s\n    on l.l_suppkey = s.s_suppkey\njoin asia_nation an\n    on s.s_nationkey = an.n_nationkey\nwhere c.c_nationkey = s.s_nationkey\n  and o.o_orderdate >= date '1994-01-01'\n  and o.o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by an.n_name\norder by revenue desc;\n",
+          "equivalence_rationale": "Materializes the same `nation`-`region` inner join and `ASIA` filter before joining to `supplier`. Multiplicity is preserved because no deduplication is introduced.",
+          "risk_note": "Low risk. Do not add `distinct` to the CTE."
+        }
+      ],
+      "rejected_formulation_ideas": [
+        {
+          "idea": "Rewrite the Asian region filter with `exists` or `in (subquery)`.",
+          "reason": "Semi-join or membership semantics can collapse duplicate matches that the baseline inner join would preserve."
+        },
+        {
+          "idea": "Pre-aggregate `lineitem` by order or supplier before the remaining joins.",
+          "reason": "The final grouped revenue depends on supplier nation after the customer-supplier same-nation predicate."
+        },
+        {
+          "idea": "Add `distinct` inside filtered CTEs or derived tables.",
+          "reason": "The baseline does not deduplicate any input rows."
+        },
+        {
+          "idea": "Change the half-open date window into `between` or `<=` bounds.",
+          "reason": "Can change which rows fall into the canonical one-year interval."
+        }
+      ]
+    },
+    {
+      "template_id": "q10",
+      "query_instance_id": "q10-q10-p0000-sf-1.0",
+      "parameter_set_id": "q10-p0000",
+      "scale_factor": 1.0,
+      "baseline_suitability": {
+        "status": "accepted_with_ordering_caveat",
+        "summary": "Suitable baseline: plain inner-join aggregate with conjunctive filters and a half-open 3-month date window. Safe alternative formulations must preserve lineitem grain and the exact `order by revenue desc limit 20` contract.",
+        "ordering_caveat": "The baseline orders only by `revenue desc`. The next phase must confirm that tied revenues do not create unstable row order for the selected parameter instance."
+      },
+      "baseline_sql": "select\n\tc_custkey,\n\tc_name,\n\tsum(l_extendedprice * (1 - l_discount)) as revenue,\n\tc_acctbal,\n\tn_name,\n\tc_address,\n\tc_phone,\n\tc_comment\nfrom\n\tcustomer,\n\torders,\n\tlineitem,\n\tnation\nwhere\n\tc_custkey = o_custkey\n\tand l_orderkey = o_orderkey\n\tand o_orderdate >= date '1994-08-01'\n\tand o_orderdate < date '1994-08-01' + interval '3 month'\n\tand l_returnflag = 'R'\n\tand c_nationkey = n_nationkey\ngroup by\n\tc_custkey,\n\tc_name,\n\tc_acctbal,\n\tc_phone,\n\tn_name,\n\tc_address,\n\tc_comment\norder by\n\trevenue desc\nlimit 20;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q10_alt_1",
+          "formulation_type": "explicit_inner_join",
+          "logical_review_status": "accepted",
+          "sql": "select\n    c.c_custkey,\n    c.c_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    c.c_acctbal,\n    n.n_name,\n    c.c_address,\n    c.c_phone,\n    c.c_comment\nfrom customer c\njoin orders o\n    on o.o_custkey = c.c_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\njoin nation n\n    on n.n_nationkey = c.c_nationkey\nwhere o.o_orderdate >= date '1994-08-01'\n  and o.o_orderdate < date '1994-08-01' + interval '3 month'\n  and l.l_returnflag = 'R'\ngroup by\n    c.c_custkey,\n    c.c_name,\n    c.c_acctbal,\n    c.c_phone,\n    n.n_name,\n    c.c_address,\n    c.c_comment\norder by revenue desc\nlimit 20;\n",
+          "equivalence_rationale": "Same four-way inner join and same filters, only rewritten from comma joins to explicit `JOIN` syntax.",
+          "risk_note": "Very low risk. Do not add extra tie-breakers to the `order by`."
+        },
+        {
+          "formulation_id": "q10_alt_2",
+          "formulation_type": "filtered_orders_and_lineitem_ctes",
+          "logical_review_status": "accepted",
+          "sql": "with orders_f as (\n    select o_orderkey, o_custkey\n    from orders\n    where o_orderdate >= date '1994-08-01'\n      and o_orderdate < date '1994-08-01' + interval '3 month'\n),\nlineitem_f as (\n    select l_orderkey, l_extendedprice, l_discount\n    from lineitem\n    where l_returnflag = 'R'\n)\nselect\n    c.c_custkey,\n    c.c_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue,\n    c.c_acctbal,\n    n.n_name,\n    c.c_address,\n    c.c_phone,\n    c.c_comment\nfrom customer c\njoin orders_f o\n    on o.o_custkey = c.c_custkey\njoin lineitem_f l\n    on l.l_orderkey = o.o_orderkey\njoin nation n\n    on n.n_nationkey = c.c_nationkey\ngroup by\n    c.c_custkey,\n    c.c_name,\n    c.c_acctbal,\n    c.c_phone,\n    n.n_name,\n    c.c_address,\n    c.c_comment\norder by revenue desc\nlimit 20;\n",
+          "equivalence_rationale": "Each CTE only pre-applies a baseline filter and projects columns already sufficient for the downstream join and aggregate; join multiplicities are unchanged.",
+          "risk_note": "Low risk. Keep the CTEs as filter/projection only; no `distinct` or pre-aggregation."
+        },
+        {
+          "formulation_id": "q10_alt_3",
+          "formulation_type": "join_first_cte_then_aggregate",
+          "logical_review_status": "accepted",
+          "sql": "with q10_rows as (\n    select\n        c.c_custkey,\n        c.c_name,\n        c.c_acctbal,\n        n.n_name,\n        c.c_address,\n        c.c_phone,\n        c.c_comment,\n        l.l_extendedprice,\n        l.l_discount\n    from customer c\n    join orders o\n        on o.o_custkey = c.c_custkey\n    join lineitem l\n        on l.l_orderkey = o.o_orderkey\n    join nation n\n        on n.n_nationkey = c.c_nationkey\n    where o.o_orderdate >= date '1994-08-01'\n      and o.o_orderdate < date '1994-08-01' + interval '3 month'\n      and l.l_returnflag = 'R'\n)\nselect\n    c_custkey,\n    c_name,\n    sum(l_extendedprice * (1 - l_discount)) as revenue,\n    c_acctbal,\n    n_name,\n    c_address,\n    c_phone,\n    c_comment\nfrom q10_rows\ngroup by\n    c_custkey,\n    c_name,\n    c_acctbal,\n    c_phone,\n    n_name,\n    c_address,\n    c_comment\norder by revenue desc\nlimit 20;\n",
+          "equivalence_rationale": "The CTE materializes the same filtered join rows the baseline would aggregate; the outer query performs the same grouping and sum over those rows.",
+          "risk_note": "Low risk while the CTE stays at lineitem grain. Do not add `distinct` or pre-aggregation inside it."
+        }
+      ],
+      "rejected_formulation_ideas": [
+        {
+          "idea": "Replace the lineitem join with `exists` or `in` against returned lineitems.",
+          "reason": "Converts a duplicate-preserving join into a semi-join and changes revenue accumulation."
+        },
+        {
+          "idea": "Replace the half-open 3-month window with `between`, `<=`, or `interval '90 day'`.",
+          "reason": "Changes the canonical interval semantics."
+        },
+        {
+          "idea": "Add `distinct` on joined rows or before aggregation.",
+          "reason": "Can remove legitimate duplicate contributing lineitems."
+        },
+        {
+          "idea": "Add extra sort keys such as `c_custkey` to stabilize ties.",
+          "reason": "Changes the baseline ordering contract."
+        }
+      ]
+    }
+  ]
+}
