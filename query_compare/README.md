@@ -3,9 +3,15 @@
 This directory holds a small curated workflow for comparing alternative SQL
 formulations of the same query with Ivory's trained estimator.
 
-The benchmark is curated for plausible planner-cost discrimination, not
-syntax-only SQL variation. It uses five rendered TPC-H templates on
-`tpch_sf_1`: `Q9`, `Q11`, `Q13`, `Q15`, and `Q17`.
+The benchmark follows a feasible-only coverage policy. It is curated for
+plausible planner-cost discrimination, not syntax-only SQL variation, and it
+keeps only templates with at least one live-validated exact-match rewrite on
+`tpch_sf_1`.
+
+The current included templates are `Q2`, `Q5`, `Q7`, `Q8`, `Q9`, `Q11`,
+`Q13`, `Q15`, `Q16`, `Q17`, and `Q19`. Excluded templates remain documented in
+`benchmark.json` with explicit screening rationale, validation status, and
+exclusion reason.
 
 Not every selected template has to become headline evidence. The benchmark is
 intended to include a small number of structurally meaningful controls, while
@@ -15,8 +21,14 @@ planner-cost separation after validation.
 ## Inputs
 
 - `benchmark.json` is the machine-readable source of truth.
-- `sql/*.sql` contains the baseline and three accepted alternative
-  formulations for each selected template.
+- `sql/*.sql` contains only the baseline and accepted alternative formulations
+  for included templates.
+
+Accepted rewrite depth is intentionally variable:
+
+- strong templates can keep `2-3` accepted rewrites
+- moderate templates can keep `1-2` accepted rewrites
+- excluded or dropped templates stay in metadata only
 
 ## Phase B: Exact-Output Validation
 
@@ -25,8 +37,9 @@ Validation is equivalence-first:
 - baseline and rewrite outputs must match exactly
 - row order is part of the contract
 - order-sensitive templates are rerun to confirm stable ordered output
-- live outputs are inspected against the active PostgreSQL instance used for
-  validation in this run, not just compared as pass/fail hashes
+- candidate rewrites are screened against the running Docker-backed PostgreSQL
+  instance before they are kept
+- the repo validator then rechecks every included baseline/rewrite pair
 
 Run the validator to confirm each accepted alternative matches the baseline's
 exact ordered output on `tpch_sf_1`:

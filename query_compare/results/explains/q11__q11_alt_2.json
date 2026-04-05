@@ -1,10 +1,10 @@
 {
-  "Execution Time": 59.631,
+  "Execution Time": 67.001,
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 869,
-    "Actual Startup Time": 58.06,
-    "Actual Total Time": 58.084,
+    "Actual Startup Time": 66.375,
+    "Actual Total Time": 66.403,
     "Async Capable": false,
     "Node Type": "Sort",
     "Parallel Aware": false,
@@ -14,8 +14,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 869,
-        "Actual Startup Time": 51.075,
-        "Actual Total Time": 57.933,
+        "Actual Startup Time": 58.447,
+        "Actual Total Time": 66.237,
         "Async Capable": false,
         "Inner Unique": false,
         "Join Filter": "((sum((ps_1.ps_supplycost * (ps_1.ps_availqty)::numeric))) > ((sum((sum((ps.ps_supplycost * (ps.ps_availqty)::numeric)))) * 0.0001000000)))",
@@ -29,8 +29,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 1,
-            "Actual Startup Time": 31.303,
-            "Actual Total Time": 31.305,
+            "Actual Startup Time": 33.859,
+            "Actual Total Time": 33.862,
             "Async Capable": false,
             "Node Type": "Aggregate",
             "Parallel Aware": false,
@@ -42,8 +42,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 30639,
-                "Actual Startup Time": 23.91,
-                "Actual Total Time": 30.451,
+                "Actual Startup Time": 25.634,
+                "Actual Total Time": 32.982,
                 "Async Capable": false,
                 "Disk Usage": 680,
                 "Group Key": [
@@ -62,8 +62,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 32560,
-                    "Actual Startup Time": 0.064,
-                    "Actual Total Time": 15.568,
+                    "Actual Startup Time": 0.039,
+                    "Actual Total Time": 17.426,
                     "Async Capable": false,
                     "Inner Unique": false,
                     "Join Type": "Inner",
@@ -76,8 +76,8 @@
                       {
                         "Actual Loops": 1,
                         "Actual Rows": 407,
-                        "Actual Startup Time": 0.056,
-                        "Actual Total Time": 0.232,
+                        "Actual Startup Time": 0.034,
+                        "Actual Total Time": 0.227,
                         "Async Capable": false,
                         "Inner Unique": false,
                         "Join Type": "Inner",
@@ -108,8 +108,8 @@
                           {
                             "Actual Loops": 1,
                             "Actual Rows": 407,
-                            "Actual Startup Time": 0.05,
-                            "Actual Total Time": 0.19,
+                            "Actual Startup Time": 0.029,
+                            "Actual Total Time": 0.186,
                             "Alias": "s",
                             "Async Capable": false,
                             "Exact Heap Blocks": 184,
@@ -123,8 +123,8 @@
                               {
                                 "Actual Loops": 1,
                                 "Actual Rows": 407,
-                                "Actual Startup Time": 0.024,
-                                "Actual Total Time": 0.024,
+                                "Actual Startup Time": 0.016,
+                                "Actual Total Time": 0.016,
                                 "Async Capable": false,
                                 "Index Cond": "(s_nationkey = n.n_nationkey)",
                                 "Index Name": "idx_supplier_nationkey",
@@ -150,8 +150,8 @@
                       {
                         "Actual Loops": 407,
                         "Actual Rows": 80,
-                        "Actual Startup Time": 0.001,
-                        "Actual Total Time": 0.033,
+                        "Actual Startup Time": 0.002,
+                        "Actual Total Time": 0.037,
                         "Alias": "ps",
                         "Async Capable": false,
                         "Index Cond": "(ps_suppkey = s.s_suppkey)",
@@ -184,8 +184,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 30639,
-            "Actual Startup Time": 19.766,
-            "Actual Total Time": 25.799,
+            "Actual Startup Time": 24.581,
+            "Actual Total Time": 31.542,
             "Async Capable": false,
             "Disk Usage": 680,
             "Group Key": [
@@ -204,8 +204,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 32560,
-                "Actual Startup Time": 0.048,
-                "Actual Total Time": 13.032,
+                "Actual Startup Time": 0.054,
+                "Actual Total Time": 16.364,
                 "Async Capable": false,
                 "Inner Unique": false,
                 "Join Type": "Inner",
@@ -218,8 +218,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 407,
-                    "Actual Startup Time": 0.042,
-                    "Actual Total Time": 0.186,
+                    "Actual Startup Time": 0.047,
+                    "Actual Total Time": 0.222,
                     "Async Capable": false,
                     "Inner Unique": false,
                     "Join Type": "Inner",
@@ -232,8 +232,8 @@
                       {
                         "Actual Loops": 1,
                         "Actual Rows": 1,
-                        "Actual Startup Time": 0.015,
-                        "Actual Total Time": 0.017,
+                        "Actual Startup Time": 0.018,
+                        "Actual Total Time": 0.02,
                         "Alias": "n_1",
                         "Async Capable": false,
                         "Filter": "(n_name = 'CHINA'::bpchar)",
@@ -250,8 +250,8 @@
                       {
                         "Actual Loops": 1,
                         "Actual Rows": 407,
-                        "Actual Startup Time": 0.025,
-                        "Actual Total Time": 0.141,
+                        "Actual Startup Time": 0.027,
+                        "Actual Total Time": 0.167,
                         "Alias": "s_1",
                         "Async Capable": false,
                         "Exact Heap Blocks": 184,
@@ -265,8 +265,8 @@
                           {
                             "Actual Loops": 1,
                             "Actual Rows": 407,
-                            "Actual Startup Time": 0.014,
-                            "Actual Total Time": 0.014,
+                            "Actual Startup Time": 0.015,
+                            "Actual Total Time": 0.015,
                             "Async Capable": false,
                             "Index Cond": "(s_nationkey = n_1.n_nationkey)",
                             "Index Name": "idx_supplier_nationkey",
@@ -292,8 +292,8 @@
                   {
                     "Actual Loops": 407,
                     "Actual Rows": 80,
-                    "Actual Startup Time": 0.001,
-                    "Actual Total Time": 0.027,
+                    "Actual Startup Time": 0.002,
+                    "Actual Total Time": 0.035,
                     "Alias": "ps_1",
                     "Async Capable": false,
                     "Index Cond": "(ps_suppkey = s_1.s_suppkey)",
@@ -333,6 +333,6 @@
     "Startup Cost": 11379.84,
     "Total Cost": 11406.51
   },
-  "Planning Time": 0.599,
+  "Planning Time": 0.43,
   "Triggers": []
 }

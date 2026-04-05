@@ -1,10 +1,10 @@
 {
-  "Execution Time": 8.831,
+  "Execution Time": 10.246,
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 1,
-    "Actual Startup Time": 8.64,
-    "Actual Total Time": 8.773,
+    "Actual Startup Time": 9.843,
+    "Actual Total Time": 10.2,
     "Async Capable": false,
     "Node Type": "Aggregate",
     "Parallel Aware": false,
@@ -15,8 +15,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 523,
-        "Actual Startup Time": 6.724,
-        "Actual Total Time": 8.745,
+        "Actual Startup Time": 8.044,
+        "Actual Total Time": 10.174,
         "Alias": "filtered_lineitems",
         "Async Capable": false,
         "Filter": "(filtered_lineitems.l_quantity < (0.2 * filtered_lineitems.avg_part_quantity))",
@@ -29,8 +29,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 6219,
-            "Actual Startup Time": 6.722,
-            "Actual Total Time": 8.285,
+            "Actual Startup Time": 8.041,
+            "Actual Total Time": 9.708,
             "Async Capable": false,
             "Node Type": "WindowAgg",
             "Parallel Aware": false,
@@ -41,8 +41,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 6219,
-                "Actual Startup Time": 6.707,
-                "Actual Total Time": 7.295,
+                "Actual Startup Time": 8.026,
+                "Actual Total Time": 8.772,
                 "Async Capable": false,
                 "Node Type": "Gather Merge",
                 "Parallel Aware": false,
@@ -53,8 +53,8 @@
                   {
                     "Actual Loops": 3,
                     "Actual Rows": 2073,
-                    "Actual Startup Time": 5.794,
-                    "Actual Total Time": 5.847,
+                    "Actual Startup Time": 6.872,
+                    "Actual Total Time": 6.929,
                     "Async Capable": false,
                     "Node Type": "Sort",
                     "Parallel Aware": false,
@@ -65,8 +65,8 @@
                       {
                         "Actual Loops": 3,
                         "Actual Rows": 2073,
-                        "Actual Startup Time": 0.126,
-                        "Actual Total Time": 5.632,
+                        "Actual Startup Time": 0.141,
+                        "Actual Total Time": 6.664,
                         "Async Capable": false,
                         "Inner Unique": false,
                         "Join Type": "Inner",
@@ -79,8 +79,8 @@
                           {
                             "Actual Loops": 3,
                             "Actual Rows": 70,
-                            "Actual Startup Time": 0.116,
-                            "Actual Total Time": 3.78,
+                            "Actual Startup Time": 0.123,
+                            "Actual Total Time": 4.672,
                             "Alias": "p",
                             "Async Capable": false,
                             "Filter": "((p_brand = 'Brand#32'::bpchar) AND (p_container = 'MED BOX'::bpchar))",
@@ -99,7 +99,7 @@
                             "Actual Loops": 210,
                             "Actual Rows": 30,
                             "Actual Startup Time": 0.004,
-                            "Actual Total Time": 0.024,
+                            "Actual Total Time": 0.026,
                             "Alias": "l",
                             "Async Capable": false,
                             "Index Cond": "(l_partkey = p.p_partkey)",
@@ -127,20 +127,20 @@
                     ],
                     "Sort Method": "quicksort",
                     "Sort Space Type": "Memory",
-                    "Sort Space Used": 197,
+                    "Sort Space Used": 215,
                     "Startup Cost": 16257.15,
                     "Total Cost": 16263.69,
                     "Workers": [
                       {
                         "Sort Method": "quicksort",
                         "Sort Space Type": "Memory",
-                        "Sort Space Used": 132,
+                        "Sort Space Used": 115,
                         "Worker Number": 0
                       },
                       {
                         "Sort Method": "quicksort",
                         "Sort Space Type": "Memory",
-                        "Sort Space Used": 197,
+                        "Sort Space Used": 195,
                         "Worker Number": 1
                       }
                     ]
@@ -165,6 +165,6 @@
     "Strategy": "Plain",
     "Total Cost": 18181.64
   },
-  "Planning Time": 0.253,
+  "Planning Time": 0.295,
   "Triggers": []
 }

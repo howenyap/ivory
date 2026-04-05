@@ -1,10 +1,10 @@
 {
-  "Execution Time": 35.013,
+  "Execution Time": 39.622,
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 869,
-    "Actual Startup Time": 34.707,
-    "Actual Total Time": 34.728,
+    "Actual Startup Time": 39.354,
+    "Actual Total Time": 39.375,
     "Async Capable": false,
     "Node Type": "Sort",
     "Parallel Aware": false,
@@ -14,8 +14,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 869,
-        "Actual Startup Time": 31.147,
-        "Actual Total Time": 34.595,
+        "Actual Startup Time": 35.761,
+        "Actual Total Time": 39.241,
         "Alias": "valued_parts",
         "Async Capable": false,
         "Filter": "(valued_parts.value > valued_parts.threshold_value)",
@@ -28,8 +28,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 30639,
-            "Actual Startup Time": 31.144,
-            "Actual Total Time": 33.524,
+            "Actual Startup Time": 35.757,
+            "Actual Total Time": 38.139,
             "Async Capable": false,
             "Node Type": "WindowAgg",
             "Parallel Aware": false,
@@ -40,8 +40,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 30639,
-                "Actual Startup Time": 21.665,
-                "Actual Total Time": 28.478,
+                "Actual Startup Time": 25.001,
+                "Actual Total Time": 33.061,
                 "Async Capable": false,
                 "Disk Usage": 680,
                 "Group Key": [
@@ -60,8 +60,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 32560,
-                    "Actual Startup Time": 0.045,
-                    "Actual Total Time": 14.83,
+                    "Actual Startup Time": 0.036,
+                    "Actual Total Time": 16.979,
                     "Async Capable": false,
                     "Inner Unique": false,
                     "Join Type": "Inner",
@@ -74,8 +74,8 @@
                       {
                         "Actual Loops": 1,
                         "Actual Rows": 407,
-                        "Actual Startup Time": 0.041,
-                        "Actual Total Time": 0.2,
+                        "Actual Startup Time": 0.032,
+                        "Actual Total Time": 0.218,
                         "Async Capable": false,
                         "Inner Unique": false,
                         "Join Type": "Inner",
@@ -89,7 +89,7 @@
                             "Actual Loops": 1,
                             "Actual Rows": 1,
                             "Actual Startup Time": 0.004,
-                            "Actual Total Time": 0.006,
+                            "Actual Total Time": 0.007,
                             "Alias": "n",
                             "Async Capable": false,
                             "Filter": "(n_name = 'CHINA'::bpchar)",
@@ -106,8 +106,8 @@
                           {
                             "Actual Loops": 1,
                             "Actual Rows": 407,
-                            "Actual Startup Time": 0.036,
-                            "Actual Total Time": 0.166,
+                            "Actual Startup Time": 0.027,
+                            "Actual Total Time": 0.178,
                             "Alias": "s",
                             "Async Capable": false,
                             "Exact Heap Blocks": 184,
@@ -148,8 +148,8 @@
                       {
                         "Actual Loops": 407,
                         "Actual Rows": 80,
-                        "Actual Startup Time": 0.001,
-                        "Actual Total Time": 0.032,
+                        "Actual Startup Time": 0.002,
+                        "Actual Total Time": 0.036,
                         "Alias": "ps",
                         "Async Capable": false,
                         "Index Cond": "(ps_suppkey = s.s_suppkey)",
@@ -193,6 +193,6 @@
     "Startup Cost": 6526.75,
     "Total Cost": 6553.41
   },
-  "Planning Time": 0.402,
+  "Planning Time": 0.386,
   "Triggers": []
 }

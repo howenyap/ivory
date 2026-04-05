@@ -1,0 +1,121 @@
+{
+  "Execution Time": 28.673,
+  "Plan": {
+    "Actual Loops": 1,
+    "Actual Rows": 1,
+    "Actual Startup Time": 27.284,
+    "Actual Total Time": 28.642,
+    "Async Capable": false,
+    "Node Type": "Aggregate",
+    "Parallel Aware": false,
+    "Partial Mode": "Finalize",
+    "Plan Rows": 1,
+    "Plan Width": 32,
+    "Plans": [
+      {
+        "Actual Loops": 1,
+        "Actual Rows": 3,
+        "Actual Startup Time": 27.206,
+        "Actual Total Time": 28.631,
+        "Async Capable": false,
+        "Node Type": "Gather",
+        "Parallel Aware": false,
+        "Parent Relationship": "Outer",
+        "Plan Rows": 2,
+        "Plan Width": 32,
+        "Plans": [
+          {
+            "Actual Loops": 3,
+            "Actual Rows": 1,
+            "Actual Startup Time": 26.169,
+            "Actual Total Time": 26.17,
+            "Async Capable": false,
+            "Node Type": "Aggregate",
+            "Parallel Aware": false,
+            "Parent Relationship": "Outer",
+            "Partial Mode": "Partial",
+            "Plan Rows": 1,
+            "Plan Width": 32,
+            "Plans": [
+              {
+                "Actual Loops": 3,
+                "Actual Rows": 39,
+                "Actual Startup Time": 0.611,
+                "Actual Total Time": 26.136,
+                "Async Capable": false,
+                "Inner Unique": false,
+                "Join Type": "Inner",
+                "Node Type": "Nested Loop",
+                "Parallel Aware": false,
+                "Parent Relationship": "Outer",
+                "Plan Rows": 48,
+                "Plan Width": 12,
+                "Plans": [
+                  {
+                    "Actual Loops": 3,
+                    "Actual Rows": 175,
+                    "Actual Startup Time": 0.06,
+                    "Actual Total Time": 7.807,
+                    "Alias": "p",
+                    "Async Capable": false,
+                    "Filter": "((p_size >= 1) AND (((p_brand = 'Brand#24'::bpchar) AND (p_container = ANY ('{\"SM CASE\",\"SM BOX\",\"SM PACK\",\"SM PKG\"}'::bpchar[])) AND (p_size <= 5)) OR ((p_brand = 'Brand#15'::bpchar) AND (p_container = ANY ('{\"MED BAG\",\"MED BOX\",\"MED PKG\",\"MED PACK\"}'::bpchar[])) AND (p_size <= 10)) OR ((p_brand = 'Brand#52'::bpchar) AND (p_container = ANY ('{\"LG CASE\",\"LG BOX\",\"LG PACK\",\"LG PKG\"}'::bpchar[])) AND (p_size <= 15))))",
+                    "Node Type": "Seq Scan",
+                    "Parallel Aware": true,
+                    "Parent Relationship": "Outer",
+                    "Plan Rows": 202,
+                    "Plan Width": 30,
+                    "Relation Name": "part",
+                    "Rows Removed by Filter": 66492,
+                    "Startup Cost": 0.0,
+                    "Total Cost": 7669.67,
+                    "Workers": []
+                  },
+                  {
+                    "Actual Loops": 525,
+                    "Actual Rows": 0,
+                    "Actual Startup Time": 0.094,
+                    "Actual Total Time": 0.104,
+                    "Alias": "l",
+                    "Async Capable": false,
+                    "Filter": "((l_shipmode = ANY ('{AIR,\"AIR REG\"}'::bpchar[])) AND (l_shipinstruct = 'DELIVER IN PERSON'::bpchar) AND (((l_quantity >= '2'::numeric) AND (l_quantity <= '12'::numeric)) OR ((l_quantity >= '16'::numeric) AND (l_quantity <= '26'::numeric)) OR ((l_quantity >= '23'::numeric) AND (l_quantity <= '33'::numeric))) AND (((p.p_brand = 'Brand#24'::bpchar) AND (p.p_container = ANY ('{\"SM CASE\",\"SM BOX\",\"SM PACK\",\"SM PKG\"}'::bpchar[])) AND (l_quantity >= '2'::numeric) AND (l_quantity <= '12'::numeric) AND (p.p_size <= 5)) OR ((p.p_brand = 'Brand#15'::bpchar) AND (p.p_container = ANY ('{\"MED BAG\",\"MED BOX\",\"MED PKG\",\"MED PACK\"}'::bpchar[])) AND (l_quantity >= '16'::numeric) AND (l_quantity <= '26'::numeric) AND (p.p_size <= 10)) OR ((p.p_brand = 'Brand#52'::bpchar) AND (p.p_container = ANY ('{\"LG CASE\",\"LG BOX\",\"LG PACK\",\"LG PKG\"}'::bpchar[])) AND (l_quantity >= '23'::numeric) AND (l_quantity <= '33'::numeric) AND (p.p_size <= 15))))",
+                    "Index Cond": "(l_partkey = p.p_partkey)",
+                    "Index Name": "idx_lineitem_part_suppkey",
+                    "Node Type": "Index Scan",
+                    "Parallel Aware": false,
+                    "Parent Relationship": "Inner",
+                    "Plan Rows": 1,
+                    "Plan Width": 21,
+                    "Relation Name": "lineitem",
+                    "Rows Removed by Filter": 30,
+                    "Rows Removed by Index Recheck": 0,
+                    "Scan Direction": "Forward",
+                    "Startup Cost": 0.43,
+                    "Total Cost": 119.52,
+                    "Workers": []
+                  }
+                ],
+                "Startup Cost": 0.43,
+                "Total Cost": 31814.53,
+                "Workers": []
+              }
+            ],
+            "Startup Cost": 31814.9,
+            "Strategy": "Plain",
+            "Total Cost": 31814.91,
+            "Workers": []
+          }
+        ],
+        "Single Copy": false,
+        "Startup Cost": 32814.9,
+        "Total Cost": 32815.11,
+        "Workers Launched": 2,
+        "Workers Planned": 2
+      }
+    ],
+    "Startup Cost": 32815.12,
+    "Strategy": "Plain",
+    "Total Cost": 32815.13
+  },
+  "Planning Time": 0.391,
+  "Triggers": []
+}

@@ -1,8 +1,8 @@
 {
   "artifact_name": "query_compare_benchmark",
-  "artifact_version": 2,
+  "artifact_version": 4,
   "scope": "query_formulation_comparison_only",
-  "description": "Human-reviewed discriminative query-comparison benchmark for five rendered TPC-H query instances. The benchmark is curated for plausible planner-cost separation, not syntax-only diversity, and records baseline SQL plus three structurally meaningful equivalent rewrites per template.",
+  "description": "Human-reviewed feasible-coverage query-comparison benchmark for rendered TPC-H query instances. The benchmark is curated for plausible planner-cost separation, not syntax-only diversity, and records baseline SQL plus one to three structurally meaningful equivalent rewrites for included templates while documenting screened exclusions.",
   "defaults": {
     "scale_factor": 1.0,
     "parameter_set_id": "p0000",
@@ -22,54 +22,560 @@
   },
   "source_provenance": {
     "rendered_query_source": "artifacts/raw/sf_1_0/raw_runs.parquet",
-    "rendered_query_selection_policy": "first successful rendered query_instance_id at scale factor 1.0 for q9/q11/q13/q15/q17 with parameter_set_id qN-p0000",
+    "rendered_query_selection_policy": "first successful rendered query_instance_id at scale factor 1.0 for each screened template with parameter_set_id qN-p0000 under the feasible-only coverage policy",
     "canonical_template_reference": "https://github.com/electrum/tpch-dbgen"
   },
   "screening": {
+    "coverage_policy": "feasible_only",
     "goal": "Select a small set of rendered TPC-H templates with research-backed rewrite families that plausibly change PostgreSQL plan shape or planner_total_cost while preserving duplicate-sensitive semantics. Headline evidence should come from templates that realize separation after validation; flatter templates can remain as controls.",
     "selected_template_ids": [
+      "q2",
+      "q5",
+      "q7",
+      "q8",
       "q9",
       "q11",
       "q13",
       "q15",
-      "q17"
+      "q16",
+      "q17",
+      "q19"
     ],
     "excluded_templates": [
       {
+        "template_id": "q1",
+        "reason": "Single-table aggregation leaves too little structurally meaningful duplicate-preserving rewrite space to justify inclusion."
+      },
+      {
         "template_id": "q3",
         "reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+      },
+      {
+        "template_id": "q4",
+        "reason": "Semijoin counting semantics are too brittle under exact duplicate-preserving rewrites."
+      },
+      {
+        "template_id": "q6",
+        "reason": "Single-table filtered aggregation leaves too little safe rewrite space."
       },
       {
         "template_id": "q10",
         "reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
       },
       {
-        "template_id": "q18",
-        "reason": "Top-N plus semi-join-style filtering makes equivalence review brittle."
-      },
-      {
-        "template_id": "q21",
-        "reason": "Exists/not-exists semantics are too close to semi-join and anti-join rewrites."
-      },
-      {
-        "template_id": "q1",
-        "reason": "Too little structural rewrite space for planner-cost discrimination."
-      },
-      {
-        "template_id": "q6",
-        "reason": "Too little structural rewrite space for planner-cost discrimination."
-      },
-      {
         "template_id": "q12",
-        "reason": "Too little structural rewrite space for planner-cost discrimination."
+        "reason": "The template has limited structurally meaningful duplicate-preserving rewrite space."
       },
       {
         "template_id": "q14",
-        "reason": "Too little structural rewrite space for planner-cost discrimination."
+        "reason": "The template has too little structural rewrite space beyond syntax reshaping."
+      },
+      {
+        "template_id": "q18",
+        "reason": "Top-N plus nested aggregation makes exact duplicate-preserving ordered equivalence too brittle."
+      },
+      {
+        "template_id": "q20",
+        "reason": "Nested anti-semijoin-style supplier filtering is too brittle under exact duplicate-preserving rewrites."
+      },
+      {
+        "template_id": "q21",
+        "reason": "EXISTS and NOT EXISTS semantics are too close to semijoin and anti-join rewrites."
+      },
+      {
+        "template_id": "q22",
+        "reason": "Null-sensitive anti-membership and correlated aggregation semantics are too brittle."
       }
-    ]
+    ],
+    "attempted_but_dropped_templates": []
   },
   "templates": [
+    {
+      "template_id": "q1",
+      "query_instance_id": "q1-q1-p0000-sf-1.0",
+      "parameter_set_id": "q1-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The template is dominated by one scan plus grouped aggregates, so feasible rewrites are mostly syntactic wrappers with little planner-shape separation.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Single-table aggregation leaves too little structurally meaningful duplicate-preserving rewrite space to justify inclusion."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "cte_wrapping_only",
+          "rejection_reason": "Pure wrapping rewrites do not create meaningful structural diversity.",
+          "planner_reason": "Expected to flatten or preserve the same aggregate plan shape."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Single-table aggregation leaves too little structurally meaningful duplicate-preserving rewrite space to justify inclusion."
+    },
+    {
+      "template_id": "q2",
+      "query_instance_id": "q2-q2-p0000-sf-1.0",
+      "parameter_set_id": "q2-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "The min-supplycost supplier selection can be factored into a shared relation while preserving the same Africa supplier population and exact top-100 ordering on this parameter instance.",
+      "baseline_suitability": {
+        "status": "accepted_with_ordering_caveat",
+        "summary": "Safe rewrites must preserve the per-part Africa minimum supply cost relation and the exact ordered top-100 output contract.",
+        "ordering_caveat": "The query uses LIMIT 100, so baseline and accepted rewrite ordering were rerun to confirm stable exact ordered output on q2-p0000."
+      },
+      "baseline_sql_path": "query_compare/sql/q2_base.sql",
+      "baseline_sql": "select\n    s_acctbal,\n    s_name,\n    n_name,\n    p_partkey,\n    p_mfgr,\n    s_address,\n    s_phone,\n    s_comment\nfrom\n    part,\n    supplier,\n    partsupp,\n    nation,\n    region\nwhere\n    p_partkey = ps_partkey\n    and s_suppkey = ps_suppkey\n    and p_size = 12\n    and p_type like '%COPPER'\n    and s_nationkey = n_nationkey\n    and n_regionkey = r_regionkey\n    and r_name = 'AFRICA'\n    and ps_supplycost = (\n        select\n            min(ps_supplycost)\n        from\n            partsupp,\n            supplier,\n            nation,\n            region\n        where\n            p_partkey = ps_partkey\n            and s_suppkey = ps_suppkey\n            and s_nationkey = n_nationkey\n            and n_regionkey = r_regionkey\n            and r_name = 'AFRICA'\n    )\norder by\n    s_acctbal desc,\n    n_name,\n    s_name,\n    p_partkey\nlimit 100;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q2_alt_1",
+          "formulation_type": "shared_min_supplycost_relation",
+          "rewrite_family": "shared_min_cost_relation",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q2_formulation_1_shared_min_supplycost_relation.sql",
+          "sql": "with africa_suppliers as (\n    select\n        s.s_suppkey,\n        s.s_acctbal,\n        s.s_name,\n        n.n_name,\n        s.s_address,\n        s.s_phone,\n        s.s_comment\n    from\n        supplier s\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    join region r\n        on r.r_regionkey = n.n_regionkey\n    where\n        r.r_name = 'AFRICA'\n),\nmin_supplycost as (\n    select\n        ps.ps_partkey,\n        min(ps.ps_supplycost) as min_supplycost\n    from\n        partsupp ps\n    join africa_suppliers af\n        on af.s_suppkey = ps.ps_suppkey\n    group by\n        ps.ps_partkey\n)\nselect\n    af.s_acctbal,\n    af.s_name,\n    af.n_name,\n    p.p_partkey,\n    p.p_mfgr,\n    af.s_address,\n    af.s_phone,\n    af.s_comment\nfrom\n    part p\njoin partsupp ps\n    on ps.ps_partkey = p.p_partkey\njoin africa_suppliers af\n    on af.s_suppkey = ps.ps_suppkey\njoin min_supplycost m\n    on m.ps_partkey = p.p_partkey\n    and m.min_supplycost = ps.ps_supplycost\nwhere\n    p.p_size = 12\n    and p.p_type like '%COPPER'\norder by\n    af.s_acctbal desc,\n    af.n_name,\n    af.s_name,\n    p.p_partkey\nlimit 100;\n",
+          "equivalence_rationale": "The Africa supplier population is factored once, and the minimum supply cost is still computed per part over exactly that supplier set before the same ordered top-100 projection.",
+          "structural_change": "Replaces the correlated scalar minimum with a shared per-part minimum-cost relation joined back on preserved keys.",
+          "selection_reason": "Introduces a distinct aggregate-plus-join structure without changing the ordered top-100 result.",
+          "exclusion_guardrails": [
+            "Preserve the Africa supplier population exactly.",
+            "Keep the final ordering keys and LIMIT unchanged."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "region_subgraph_factoring_without_shared_min_cost",
+          "rejection_reason": "Additional formulations did not add enough structure beyond the accepted shared minimum-cost relation.",
+          "planner_reason": "Too likely to collapse into a similar plan without meaningful extra diversity."
+        },
+        {
+          "rewrite_family": "top_n_order_relaxation",
+          "rejection_reason": "Any rewrite that relies on different tie handling is not acceptable.",
+          "equivalence_concern": "Exact ordered-output equivalence would fail even if row values match."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "1-2 accepted rewrites",
+      "accepted_rewrite_families": [
+        "shared_min_cost_relation"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q2_alt_1"
+        ],
+        "baseline_order_stability_checks": 3,
+        "accepted_formulation_order_stability_checks": {
+          "q2_alt_1": 3
+        }
+      }
+    },
+    {
+      "template_id": "q3",
+      "query_instance_id": "q3-q3-p0000-sf-1.0",
+      "parameter_set_id": "q3-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The LIMIT plus partial ordering creates brittle exact-order semantics for duplicate-preserving rewrites.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "top_n_subquery_factoring",
+          "rejection_reason": "Top-N rewrites are too likely to perturb row order under ties.",
+          "equivalence_concern": "Exact ordered-output equivalence would be fragile."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+    },
+    {
+      "template_id": "q4",
+      "query_instance_id": "q4-q4-p0000-sf-1.0",
+      "parameter_set_id": "q4-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The EXISTS-style order filter is close to semijoin semantics, which makes exact duplicate preservation hard to defend.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Semijoin counting semantics are too brittle under exact duplicate-preserving rewrites."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "exists_to_join_factoring",
+          "rejection_reason": "Semijoin rewrites risk changing multiplicities.",
+          "equivalence_concern": "Join-based alternatives can duplicate or suppress orders."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Semijoin counting semantics are too brittle under exact duplicate-preserving rewrites."
+    },
+    {
+      "template_id": "q5",
+      "query_instance_id": "q5-q5-p0000-sf-1.0",
+      "parameter_set_id": "q5-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Six-way join with a selective region filter, an order-date range, and a customer-supplier same-nation constraint. Safe rewrites can factor the selective nation region subgraph or split the customer-orders and supplier-lineitem sides without collapsing duplicate-preserving joins.",
+      "baseline_suitability": {
+        "status": "accepted_with_ordering_caveat",
+        "summary": "Equivalent rewrites must preserve the customer-supplier same-nation join exactly, keep the 1994 order-date filter attached to orders, and leave the revenue aggregation at nation grain.",
+        "ordering_caveat": "The query orders only by revenue desc, so repeated Docker validation was used to confirm stable ordered output on q5-p0000."
+      },
+      "baseline_sql_path": "query_compare/sql/q5_base.sql",
+      "baseline_sql": "select\n    n_name,\n    sum(l_extendedprice * (1 - l_discount)) as revenue\nfrom\n    customer,\n    orders,\n    lineitem,\n    supplier,\n    nation,\n    region\nwhere\n    c_custkey = o_custkey\n    and l_orderkey = o_orderkey\n    and l_suppkey = s_suppkey\n    and c_nationkey = s_nationkey\n    and s_nationkey = n_nationkey\n    and n_regionkey = r_regionkey\n    and r_name = 'ASIA'\n    and o_orderdate >= date '1994-01-01'\n    and o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by\n    n_name\norder by\n    revenue desc;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q5_alt_1",
+          "formulation_type": "filtered_asia_nations",
+          "rewrite_family": "join_island_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q5_formulation_1_filtered_asia_nations.sql",
+          "sql": "with asia_nations as (\n    select\n        n.n_nationkey,\n        n.n_name\n    from\n        nation n\n    join region r\n        on r.r_regionkey = n.n_regionkey\n    where\n        r.r_name = 'ASIA'\n)\nselect\n    an.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom\n    asia_nations an\njoin supplier s\n    on s.s_nationkey = an.n_nationkey\njoin customer c\n    on c.c_nationkey = an.n_nationkey\njoin orders o\n    on o.o_custkey = c.c_custkey\njoin lineitem l\n    on l.l_orderkey = o.o_orderkey\n    and l.l_suppkey = s.s_suppkey\nwhere\n    o.o_orderdate >= date '1994-01-01'\n    and o.o_orderdate < date '1994-01-01' + interval '1 year'\ngroup by\n    an.n_name\norder by\n    revenue desc;\n",
+          "equivalence_rationale": "The Asia region filter is isolated into a nation island, but each qualifying customer-order-lineitem-supplier combination still joins on the same shared nation key before aggregation.",
+          "structural_change": "Factors the selective Asia nation-region join into a dimension island before joining suppliers, customers, orders, and lineitems.",
+          "selection_reason": "Likely to alter join search space by shrinking the region-filtered dimension side early.",
+          "exclusion_guardrails": [
+            "Preserve the customer-supplier equality on nation key.",
+            "Keep the order-date filter on orders before aggregation."
+          ]
+        },
+        {
+          "formulation_id": "q5_alt_2",
+          "formulation_type": "orders_in_range_customer_supplier_split",
+          "rewrite_family": "selective_subgraph_split",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q5_formulation_2_orders_in_range_customer_supplier_split.sql",
+          "sql": "with asia_nations as (\n    select\n        n.n_nationkey,\n        n.n_name\n    from\n        nation n\n    join region r\n        on r.r_regionkey = n.n_regionkey\n    where\n        r.r_name = 'ASIA'\n),\norders_in_range as (\n    select\n        o.o_orderkey,\n        o.o_custkey\n    from\n        orders o\n    where\n        o.o_orderdate >= date '1994-01-01'\n        and o.o_orderdate < date '1994-01-01' + interval '1 year'\n),\ncustomer_orders as (\n    select\n        o.o_orderkey,\n        c.c_nationkey\n    from\n        orders_in_range o\n    join customer c\n        on c.c_custkey = o.o_custkey\n),\nasia_suppliers as (\n    select\n        s.s_suppkey,\n        an.n_nationkey,\n        an.n_name\n    from\n        supplier s\n    join asia_nations an\n        on an.n_nationkey = s.s_nationkey\n)\nselect\n    asup.n_name,\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom\n    customer_orders co\njoin lineitem l\n    on l.l_orderkey = co.o_orderkey\njoin asia_suppliers asup\n    on asup.s_suppkey = l.l_suppkey\n    and asup.n_nationkey = co.c_nationkey\ngroup by\n    asup.n_name\norder by\n    revenue desc;\n",
+          "equivalence_rationale": "Orders are filtered first, customers keep their nation key, and suppliers retain the same Asia nation mapping before the unchanged lineitem join brings the sides together.",
+          "structural_change": "Separates the date-filtered orders/customer side from the Asia-filtered supplier side before the final fact join.",
+          "selection_reason": "Creates explicit customer-order and supplier dimension islands that can steer PostgreSQL toward a different join tree.",
+          "exclusion_guardrails": [
+            "Do not drop the customer nation key before the final join.",
+            "Do not pre-aggregate revenue before the lineitem join."
+          ]
+        },
+        {
+          "formulation_id": "q5_alt_3",
+          "formulation_type": "customer_orders_supplier_lineitems",
+          "rewrite_family": "fact_dimension_split",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q5_formulation_3_customer_orders_supplier_lineitems.sql",
+          "sql": "with asia_nations as (\n    select\n        n.n_nationkey,\n        n.n_name\n    from\n        nation n\n    join region r\n        on r.r_regionkey = n.n_regionkey\n    where\n        r.r_name = 'ASIA'\n),\nnation_customer_orders as (\n    select\n        o.o_orderkey,\n        an.n_name,\n        an.n_nationkey\n    from\n        asia_nations an\n    join customer c\n        on c.c_nationkey = an.n_nationkey\n    join orders o\n        on o.o_custkey = c.c_custkey\n    where\n        o.o_orderdate >= date '1994-01-01'\n        and o.o_orderdate < date '1994-01-01' + interval '1 year'\n),\nsupplier_lineitems as (\n    select\n        l.l_orderkey,\n        s.s_nationkey,\n        l.l_extendedprice * (1 - l.l_discount) as revenue\n    from\n        supplier s\n    join lineitem l\n        on l.l_suppkey = s.s_suppkey\n)\nselect\n    nco.n_name,\n    sum(sl.revenue) as revenue\nfrom\n    nation_customer_orders nco\njoin supplier_lineitems sl\n    on sl.l_orderkey = nco.o_orderkey\n    and sl.s_nationkey = nco.n_nationkey\ngroup by\n    nco.n_name\norder by\n    revenue desc;\n",
+          "equivalence_rationale": "Each supplier-lineitem row keeps its supplier nation key, and each qualifying order keeps its customer nation key and nation name, so the final join reproduces the original same-nation revenue rows exactly.",
+          "structural_change": "Builds nation-qualified customer orders separately from supplier-attached lineitem revenue rows, then joins on order key and nation key.",
+          "selection_reason": "Splits the query into customer-order and supplier-lineitem islands while preserving the original duplicate-sensitive joins.",
+          "exclusion_guardrails": [
+            "Keep supplier nation attached to every lineitem row.",
+            "Do not change the final revenue-desc ordering."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "EXISTS/IN rewrites would blur duplicate-preserving join semantics.",
+          "equivalence_concern": "They can suppress legitimate multiplicity from lineitem and supplier matches."
+        },
+        {
+          "rewrite_family": "early_nation_aggregation",
+          "rejection_reason": "Aggregating before customer, supplier, and lineitem are joined is not safe here.",
+          "equivalence_concern": "It can merge rows that should remain distinct until after the same-nation join is enforced."
+        },
+        {
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "DISTINCT-style rewrites are not allowed.",
+          "equivalence_concern": "They would change row multiplicity by construction."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "join_island_factoring",
+        "selective_subgraph_split",
+        "fact_dimension_split"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Docker-backed exact-output validation using baseline and rewrite result hashes on the running Postgres container, followed by repo-level exact revalidation.",
+        "baseline_result_hash": "caf74f5e4e60321a38747c3baf7b36ae47b75fd650a29e1700f8fc484f75671f",
+        "accepted_formulation_ids": [
+          "q5_alt_1",
+          "q5_alt_2",
+          "q5_alt_3"
+        ],
+        "accepted_formulation_result_hashes": {
+          "q5_alt_1": "caf74f5e4e60321a38747c3baf7b36ae47b75fd650a29e1700f8fc484f75671f",
+          "q5_alt_2": "caf74f5e4e60321a38747c3baf7b36ae47b75fd650a29e1700f8fc484f75671f",
+          "q5_alt_3": "caf74f5e4e60321a38747c3baf7b36ae47b75fd650a29e1700f8fc484f75671f"
+        },
+        "baseline_order_stability_checks": 3
+      }
+    },
+    {
+      "template_id": "q6",
+      "query_instance_id": "q6-q6-p0000-sf-1.0",
+      "parameter_set_id": "q6-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "Feasible rewrites would mostly restate the same scan and sum without introducing planner-relevant structural change.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Single-table filtered aggregation leaves too little safe rewrite space."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "filter_only_cte",
+          "rejection_reason": "Syntactic wrappers do not create benchmark-worthy formulation diversity.",
+          "planner_reason": "Expected to produce the same scan-plus-aggregate plan."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Single-table filtered aggregation leaves too little safe rewrite space."
+    },
+    {
+      "template_id": "q7",
+      "query_instance_id": "q7-q7-p0000-sf-1.0",
+      "parameter_set_id": "q7-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Bidirectional nation-pair shipping query with a symmetric OR predicate over two directed nation combinations. Safe rewrites can factor the two directions, precompute the nation-pair relation, or split dated lineitems from customer and supplier nation dimensions.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "Equivalent rewrites must preserve the two directed nation pairs exactly, keep the shipdate filter on lineitem rows, and aggregate only after the same supplier-customer direction has been attached to each row."
+      },
+      "baseline_sql_path": "query_compare/sql/q7_base.sql",
+      "baseline_sql": "select\n    supp_nation,\n    cust_nation,\n    l_year,\n    sum(volume) as revenue\nfrom\n    (\n        select\n            n1.n_name as supp_nation,\n            n2.n_name as cust_nation,\n            extract(year from l_shipdate) as l_year,\n            l_extendedprice * (1 - l_discount) as volume\n        from\n            supplier,\n            lineitem,\n            orders,\n            customer,\n            nation n1,\n            nation n2\n        where\n            s_suppkey = l_suppkey\n            and o_orderkey = l_orderkey\n            and c_custkey = o_custkey\n            and s_nationkey = n1.n_nationkey\n            and c_nationkey = n2.n_nationkey\n            and (\n                (n1.n_name = 'GERMANY' and n2.n_name = 'MOZAMBIQUE')\n                or (n1.n_name = 'MOZAMBIQUE' and n2.n_name = 'GERMANY')\n            )\n            and l_shipdate between date '1995-01-01' and date '1996-12-31'\n    ) as shipping\ngroup by\n    supp_nation,\n    cust_nation,\n    l_year\norder by\n    supp_nation,\n    cust_nation,\n    l_year;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q7_alt_1",
+          "formulation_type": "union_all_direction_split",
+          "rewrite_family": "or_expansion_union_all",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q7_formulation_1_union_all_direction_split.sql",
+          "sql": "with shipping as (\n    select\n        n1.n_name as supp_nation,\n        n2.n_name as cust_nation,\n        extract(year from l.l_shipdate) as l_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume\n    from\n        supplier s\n    join lineitem l\n        on l.l_suppkey = s.s_suppkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join customer c\n        on c.c_custkey = o.o_custkey\n    join nation n1\n        on n1.n_nationkey = s.s_nationkey\n    join nation n2\n        on n2.n_nationkey = c.c_nationkey\n    where\n        n1.n_name = 'GERMANY'\n        and n2.n_name = 'MOZAMBIQUE'\n        and l.l_shipdate between date '1995-01-01' and date '1996-12-31'\n\n    union all\n\n    select\n        n1.n_name as supp_nation,\n        n2.n_name as cust_nation,\n        extract(year from l.l_shipdate) as l_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume\n    from\n        supplier s\n    join lineitem l\n        on l.l_suppkey = s.s_suppkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join customer c\n        on c.c_custkey = o.o_custkey\n    join nation n1\n        on n1.n_nationkey = s.s_nationkey\n    join nation n2\n        on n2.n_nationkey = c.c_nationkey\n    where\n        n1.n_name = 'MOZAMBIQUE'\n        and n2.n_name = 'GERMANY'\n        and l.l_shipdate between date '1995-01-01' and date '1996-12-31'\n)\nselect\n    supp_nation,\n    cust_nation,\n    l_year,\n    sum(volume) as revenue\nfrom\n    shipping\ngroup by\n    supp_nation,\n    cust_nation,\n    l_year\norder by\n    supp_nation,\n    cust_nation,\n    l_year;\n",
+          "equivalence_rationale": "The Germany->Mozambique and Mozambique->Germany branches are mutually exclusive, so UNION ALL preserves the exact shipping rows before the outer aggregate.",
+          "structural_change": "Expands the symmetric OR predicate into two disjoint directed branches combined with UNION ALL.",
+          "selection_reason": "Turns the OR predicate into two explicit branches that can produce a different plan shape without changing multiplicity.",
+          "exclusion_guardrails": [
+            "Use UNION ALL, not UNION.",
+            "Keep the shipdate predicate identical in both branches."
+          ]
+        },
+        {
+          "formulation_id": "q7_alt_2",
+          "formulation_type": "nation_pairs_join",
+          "rewrite_family": "join_island_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q7_formulation_2_nation_pairs_join.sql",
+          "sql": "with nation_pairs as (\n    select\n        n1.n_nationkey as supp_nationkey,\n        n1.n_name as supp_nation,\n        n2.n_nationkey as cust_nationkey,\n        n2.n_name as cust_nation\n    from\n        nation n1\n    join nation n2\n        on (\n            n1.n_name = 'GERMANY'\n            and n2.n_name = 'MOZAMBIQUE'\n        )\n        or (\n            n1.n_name = 'MOZAMBIQUE'\n            and n2.n_name = 'GERMANY'\n        )\n),\nshipping as (\n    select\n        np.supp_nation,\n        np.cust_nation,\n        extract(year from l.l_shipdate) as l_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume\n    from\n        nation_pairs np\n    join supplier s\n        on s.s_nationkey = np.supp_nationkey\n    join lineitem l\n        on l.l_suppkey = s.s_suppkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join customer c\n        on c.c_custkey = o.o_custkey\n        and c.c_nationkey = np.cust_nationkey\n    where\n        l.l_shipdate between date '1995-01-01' and date '1996-12-31'\n)\nselect\n    supp_nation,\n    cust_nation,\n    l_year,\n    sum(volume) as revenue\nfrom\n    shipping\ngroup by\n    supp_nation,\n    cust_nation,\n    l_year\norder by\n    supp_nation,\n    cust_nation,\n    l_year;\n",
+          "equivalence_rationale": "The nation_pairs relation has exactly the two allowed directed combinations, so joining through it reproduces the same supplier/customer direction filter as the baseline.",
+          "structural_change": "Materializes the two legal supplier-customer nation pairs before joining them to suppliers, customers, orders, and lineitems.",
+          "selection_reason": "Creates a compact directional dimension island that can alter join order and filter placement.",
+          "exclusion_guardrails": [
+            "Nation pairs must remain the two directed rows only.",
+            "Do not deduplicate the shipping rows."
+          ]
+        },
+        {
+          "formulation_id": "q7_alt_3",
+          "formulation_type": "dated_lineitems_dimension_split",
+          "rewrite_family": "fact_dimension_split",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q7_formulation_3_dated_lineitems_dimension_split.sql",
+          "sql": "with dated_lineitems as (\n    select\n        l.l_orderkey,\n        l.l_suppkey,\n        extract(year from l.l_shipdate) as l_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume\n    from\n        lineitem l\n    where\n        l.l_shipdate between date '1995-01-01' and date '1996-12-31'\n),\ncustomer_orders as (\n    select\n        o.o_orderkey,\n        n.n_name as cust_nation\n    from\n        orders o\n    join customer c\n        on c.c_custkey = o.o_custkey\n    join nation n\n        on n.n_nationkey = c.c_nationkey\n    where\n        n.n_name in ('GERMANY', 'MOZAMBIQUE')\n),\nsupplier_nations as (\n    select\n        s.s_suppkey,\n        n.n_name as supp_nation\n    from\n        supplier s\n    join nation n\n        on n.n_nationkey = s.s_nationkey\n    where\n        n.n_name in ('GERMANY', 'MOZAMBIQUE')\n)\nselect\n    sn.supp_nation,\n    co.cust_nation,\n    dl.l_year,\n    sum(dl.volume) as revenue\nfrom\n    dated_lineitems dl\njoin customer_orders co\n    on co.o_orderkey = dl.l_orderkey\njoin supplier_nations sn\n    on sn.s_suppkey = dl.l_suppkey\nwhere\n    (sn.supp_nation = 'GERMANY' and co.cust_nation = 'MOZAMBIQUE')\n    or (sn.supp_nation = 'MOZAMBIQUE' and co.cust_nation = 'GERMANY')\ngroup by\n    sn.supp_nation,\n    co.cust_nation,\n    dl.l_year\norder by\n    sn.supp_nation,\n    co.cust_nation,\n    dl.l_year;\n",
+          "equivalence_rationale": "The dated lineitems keep order and supplier keys, customer orders keep the customer nation name, and supplier nations keep the supplier nation name, so the final directed-pair filter preserves the original row set.",
+          "structural_change": "Separates the shipdate-filtered lineitem fact rows from customer-order and supplier-nation dimensions before applying the directed nation filter.",
+          "selection_reason": "Splits fact and dimension work into independent islands while preserving the exact final grouping keys and order.",
+          "exclusion_guardrails": [
+            "Apply the directed nation filter after both nation names are attached.",
+            "Preserve the final ordering on supplier nation, customer nation, and year."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "union_deduplication",
+          "rejection_reason": "UNION would deduplicate rows across the two directed branches.",
+          "equivalence_concern": "That would change multiplicity before aggregation."
+        },
+        {
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "EXISTS/IN rewrites are out of scope for duplicate-preserving comparison here.",
+          "equivalence_concern": "They can change how duplicate shipping rows are preserved."
+        },
+        {
+          "rewrite_family": "pre_grouped_revenue",
+          "rejection_reason": "Aggregating before supplier/customer direction is fully attached is not safe.",
+          "equivalence_concern": "It can merge revenue rows that belong to different directed nation pairs or years."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "or_expansion_union_all",
+        "join_island_factoring",
+        "fact_dimension_split"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Docker-backed exact-output validation using baseline and rewrite result hashes on the running Postgres container, followed by repo-level exact revalidation.",
+        "baseline_result_hash": "cb3496c420a4402d93451b9fd0469a5d692cf48530c6bc3dbbedaba56f957340",
+        "accepted_formulation_ids": [
+          "q7_alt_1",
+          "q7_alt_2",
+          "q7_alt_3"
+        ],
+        "accepted_formulation_result_hashes": {
+          "q7_alt_1": "cb3496c420a4402d93451b9fd0469a5d692cf48530c6bc3dbbedaba56f957340",
+          "q7_alt_2": "cb3496c420a4402d93451b9fd0469a5d692cf48530c6bc3dbbedaba56f957340",
+          "q7_alt_3": "cb3496c420a4402d93451b9fd0469a5d692cf48530c6bc3dbbedaba56f957340"
+        }
+      }
+    },
+    {
+      "template_id": "q8",
+      "query_instance_id": "q8-q8-p0000-sf-1.0",
+      "parameter_set_id": "q8-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Eight-way join with a year-grain market-share ratio and deterministic year ordering. Safe rewrites can factor customer-region and supplier-nation dimensions or split numerator and denominator aggregation without changing duplicate-sensitive line volume contributions.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "The rewrite space is safe when every qualifying lineitem still contributes one volume row before the final year-grain market-share calculation."
+      },
+      "baseline_sql_path": "query_compare/sql/q8_base.sql",
+      "baseline_sql": "select\n    o_year,\n    sum(case\n        when nation = 'MOROCCO' then volume\n        else 0\n    end) / sum(volume) as mkt_share\nfrom\n    (\n        select\n            extract(year from o_orderdate) as o_year,\n            l_extendedprice * (1 - l_discount) as volume,\n            n2.n_name as nation\n        from\n            part,\n            supplier,\n            lineitem,\n            orders,\n            customer,\n            nation n1,\n            nation n2,\n            region\n        where\n            p_partkey = l_partkey\n            and s_suppkey = l_suppkey\n            and l_orderkey = o_orderkey\n            and o_custkey = c_custkey\n            and c_nationkey = n1.n_nationkey\n            and n1.n_regionkey = r_regionkey\n            and r_name = 'AFRICA'\n            and s_nationkey = n2.n_nationkey\n            and o_orderdate between date '1995-01-01' and date '1996-12-31'\n            and p_type = 'MEDIUM BRUSHED NICKEL'\n    ) as all_nations\ngroup by\n    o_year\norder by\n    o_year;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q8_alt_1",
+          "formulation_type": "customer_supplier_islands",
+          "rewrite_family": "join_island_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q8_formulation_1_customer_supplier_islands.sql",
+          "sql": "with region_customers as (\n    select\n        c.c_custkey\n    from\n        customer c\n    join nation n1\n        on n1.n_nationkey = c.c_nationkey\n    join region r\n        on r.r_regionkey = n1.n_regionkey\n    where\n        r.r_name = 'AFRICA'\n),\nfiltered_parts as (\n    select\n        p.p_partkey\n    from\n        part p\n    where\n        p.p_type = 'MEDIUM BRUSHED NICKEL'\n),\nsupplier_nations as (\n    select\n        s.s_suppkey,\n        n2.n_name as nation\n    from\n        supplier s\n    join nation n2\n        on n2.n_nationkey = s.s_nationkey\n),\nall_nations as (\n    select\n        extract(year from o.o_orderdate) as o_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume,\n        sn.nation\n    from\n        filtered_parts p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join region_customers rc\n        on rc.c_custkey = o.o_custkey\n    join supplier_nations sn\n        on sn.s_suppkey = l.l_suppkey\n    where\n        o.o_orderdate between date '1995-01-01' and date '1996-12-31'\n)\nselect\n    o_year,\n    sum(case\n        when nation = 'MOROCCO' then volume\n        else 0\n    end) / sum(volume) as mkt_share\nfrom\n    all_nations\ngroup by\n    o_year\norder by\n    o_year;\n",
+          "equivalence_rationale": "The customer-region, part, and supplier-nation dimensions are split into selective islands, but each qualifying lineitem still contributes exactly one year, volume, and supplier-nation row before the final ratio aggregate.",
+          "structural_change": "Factors customer-region and supplier-nation dimensions away from the central lineitem-orders-part join path.",
+          "selection_reason": "Most likely q8 rewrite to alter join order by isolating the selective dimension subgraphs early.",
+          "exclusion_guardrails": [
+            "Keep the customer-region path one row per qualifying customer.",
+            "Do not aggregate before the year and nation attributes are attached."
+          ]
+        },
+        {
+          "formulation_id": "q8_alt_2",
+          "formulation_type": "split_yearly_totals",
+          "rewrite_family": "aggregate_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q8_formulation_2_split_yearly_totals.sql",
+          "sql": "with all_nations as (\n    select\n        extract(year from o.o_orderdate) as o_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume,\n        n2.n_name as nation\n    from\n        part p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join customer c\n        on c.c_custkey = o.o_custkey\n    join nation n1\n        on n1.n_nationkey = c.c_nationkey\n    join region r\n        on r.r_regionkey = n1.n_regionkey\n    join supplier s\n        on s.s_suppkey = l.l_suppkey\n    join nation n2\n        on n2.n_nationkey = s.s_nationkey\n    where\n        r.r_name = 'AFRICA'\n        and o.o_orderdate between date '1995-01-01' and date '1996-12-31'\n        and p.p_type = 'MEDIUM BRUSHED NICKEL'\n),\nyearly_totals as (\n    select\n        o_year,\n        sum(volume) as total_volume\n    from\n        all_nations\n    group by\n        o_year\n),\nmorocco_totals as (\n    select\n        o_year,\n        sum(volume) as morocco_volume\n    from\n        all_nations\n    where\n        nation = 'MOROCCO'\n    group by\n        o_year\n)\nselect\n    y.o_year,\n    coalesce(m.morocco_volume, 0) / y.total_volume as mkt_share\nfrom\n    yearly_totals y\nleft join morocco_totals m\n    on m.o_year = y.o_year\norder by\n    y.o_year;\n",
+          "equivalence_rationale": "The same duplicate-preserving all_nations relation feeds both the yearly denominator and the Morocco-only numerator, then those year-grain aggregates are recombined without changing row order.",
+          "structural_change": "Splits the market-share numerator and denominator into separate year-grain aggregate relations before the final join.",
+          "selection_reason": "Introduces a meaningful aggregate boundary while preserving the exact year-level ratio semantics.",
+          "exclusion_guardrails": [
+            "Both aggregates must range over the same all_nations row set.",
+            "Preserve the final left join so years with zero Morocco volume stay visible."
+          ]
+        },
+        {
+          "formulation_id": "q8_alt_3",
+          "formulation_type": "windowed_year_share",
+          "rewrite_family": "window_after_safe_join",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q8_formulation_3_windowed_year_share.sql",
+          "sql": "with all_nations as (\n    select\n        extract(year from o.o_orderdate) as o_year,\n        l.l_extendedprice * (1 - l.l_discount) as volume,\n        n2.n_name as nation\n    from\n        part p\n    join lineitem l\n        on l.l_partkey = p.p_partkey\n    join orders o\n        on o.o_orderkey = l.l_orderkey\n    join customer c\n        on c.c_custkey = o.o_custkey\n    join nation n1\n        on n1.n_nationkey = c.c_nationkey\n    join region r\n        on r.r_regionkey = n1.n_regionkey\n    join supplier s\n        on s.s_suppkey = l.l_suppkey\n    join nation n2\n        on n2.n_nationkey = s.s_nationkey\n    where\n        r.r_name = 'AFRICA'\n        and o.o_orderdate between date '1995-01-01' and date '1996-12-31'\n        and p.p_type = 'MEDIUM BRUSHED NICKEL'\n),\nannotated_rows as (\n    select\n        o_year,\n        nation,\n        volume,\n        sum(volume) over (partition by o_year) as total_volume\n    from\n        all_nations\n)\nselect\n    o_year,\n    sum(case\n        when nation = 'MOROCCO' then volume\n        else 0\n    end) / max(total_volume) as mkt_share\nfrom\n    annotated_rows\ngroup by\n    o_year\norder by\n    o_year;\n",
+          "equivalence_rationale": "The window total is computed only after the duplicate-preserving all_nations rows exist, so each year retains the same numerator rows and the same denominator as the baseline aggregate.",
+          "structural_change": "Replaces the direct denominator aggregate with a partitioned window total that is consumed by an outer group aggregate.",
+          "selection_reason": "Gives q8 a distinct aggregate-plus-window shape without weakening the row-preserving join logic.",
+          "exclusion_guardrails": [
+            "Partition the window by year only after all qualifying rows are formed.",
+            "Use an outer aggregate that preserves the same year ordering."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "Using EXISTS or IN as the primary rewrite family is out of scope for this duplicate-preserving join benchmark.",
+          "planner_reason": "Would blur the intended comparison between duplicate-preserving joins and semijoin behavior."
+        },
+        {
+          "rewrite_family": "unsafe_partial_aggregation",
+          "rejection_reason": "Aggregating before both the year and supplier nation semantics are preserved is not equivalent.",
+          "equivalence_concern": "Would lose the exact Morocco-versus-all-nations share calculation."
+        },
+        {
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "DISTINCT-style rewrites invalidate the benchmark.",
+          "equivalence_concern": "Would change row multiplicity before the market-share aggregates."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "join_island_factoring",
+        "aggregate_factoring",
+        "window_after_safe_join"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Docker-backed exact-output validation against the running Postgres container, followed by repo-level exact revalidation.",
+        "accepted_formulation_ids": [
+          "q8_alt_1",
+          "q8_alt_2",
+          "q8_alt_3"
+        ],
+        "baseline_observed_rows": [
+          "1995|0.03363673784643245322",
+          "1996|0.04339461256362781141"
+        ],
+        "accepted_formulation_observed_rows": {
+          "q8_alt_1": [
+            "1995|0.03363673784643245322",
+            "1996|0.04339461256362781141"
+          ],
+          "q8_alt_2": [
+            "1995|0.03363673784643245322",
+            "1996|0.04339461256362781141"
+          ],
+          "q8_alt_3": [
+            "1995|0.03363673784643245322",
+            "1996|0.04339461256362781141"
+          ]
+        }
+      }
+    },
     {
       "template_id": "q9",
       "query_instance_id": "q9-q9-p0000-sf-1.0",
@@ -145,7 +651,52 @@
           "rejection_reason": "DISTINCT-style rewrites invalidate the benchmark.",
           "equivalence_concern": "Would change row multiplicity by construction."
         }
-      ]
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "join_island_factoring",
+        "derived_table_factoring",
+        "join_island_factoring"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q9_alt_1",
+          "q9_alt_2",
+          "q9_alt_3"
+        ]
+      }
+    },
+    {
+      "template_id": "q10",
+      "query_instance_id": "q10-q10-p0000-sf-1.0",
+      "parameter_set_id": "q10-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The ordered top-customer result is sensitive to tie behavior and row order under equivalent rewrites.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Top-N ordering contract is fragile for exact ordered-output equivalence."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "top_n_preaggregation",
+          "rejection_reason": "LIMIT-sensitive rewrites are too brittle for exact ordered-output matching.",
+          "equivalence_concern": "Ties can reorder survivors even when values match."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Top-N ordering contract is fragile for exact ordered-output equivalence."
     },
     {
       "template_id": "q11",
@@ -223,7 +774,53 @@
           "rejection_reason": "Any threshold over a different row set is not equivalent.",
           "equivalence_concern": "Would change which parts survive the HAVING filter."
         }
-      ]
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "aggregate_factoring",
+        "aggregate_factoring",
+        "window_after_safe_aggregation"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q11_alt_1",
+          "q11_alt_2",
+          "q11_alt_3"
+        ],
+        "baseline_order_stability_checks": 3
+      }
+    },
+    {
+      "template_id": "q12",
+      "query_instance_id": "q12-q12-p0000-sf-1.0",
+      "parameter_set_id": "q12-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The grouped CASE expression is straightforward and does not admit many safe planner-shape-changing reformulations.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "The template has limited structurally meaningful duplicate-preserving rewrite space."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "case_filter_wrapping",
+          "rejection_reason": "Candidate rewrites were mostly syntactic and not benchmark-worthy.",
+          "planner_reason": "Expected to retain the same join and aggregate structure."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "The template has limited structurally meaningful duplicate-preserving rewrite space."
     },
     {
       "template_id": "q13",
@@ -300,7 +897,52 @@
           "rejection_reason": "count(*) changes the null-sensitive counting behavior.",
           "equivalence_concern": "Would overcount customers with no matching orders."
         }
-      ]
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "selective_derived_table",
+        "early_group_by_on_safe_subgraph",
+        "decorrelation_or_lateral"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q13_alt_1",
+          "q13_alt_2",
+          "q13_alt_3"
+        ]
+      }
+    },
+    {
+      "template_id": "q14",
+      "query_instance_id": "q14-q14-p0000-sf-1.0",
+      "parameter_set_id": "q14-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The numerator and denominator share the same single join and filtered aggregate, leaving few safe alternatives.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "The template has too little structural rewrite space beyond syntax reshaping."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "promotion_ratio_wrapping",
+          "rejection_reason": "Wrapping rewrites do not introduce meaningful structural diversity.",
+          "planner_reason": "Expected to preserve the same aggregate plan."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "The template has too little structural rewrite space beyond syntax reshaping."
     },
     {
       "template_id": "q15",
@@ -377,7 +1019,96 @@
           "rejection_reason": "Deduplicating suppliers is not allowed.",
           "equivalence_concern": "Would collapse valid tied winners."
         }
-      ]
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "aggregate_factoring",
+        "derived_table_factoring",
+        "window_after_safe_aggregation"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q15_alt_1",
+          "q15_alt_2",
+          "q15_alt_3"
+        ]
+      }
+    },
+    {
+      "template_id": "q16",
+      "query_instance_id": "q16-q16-p0000-sf-1.0",
+      "parameter_set_id": "q16-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "This grouped distinct-supplier template admits safe factoring of the disqualifying supplier set and the selective part filter while preserving the exact anti-membership semantics.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "Safe rewrites must preserve the non-null supplier anti-membership semantics and the exact grouped count(distinct ps_suppkey) aggregation."
+      },
+      "baseline_sql_path": "query_compare/sql/q16_base.sql",
+      "baseline_sql": "select\n    p_brand,\n    p_type,\n    p_size,\n    count(distinct ps_suppkey) as supplier_cnt\nfrom\n    partsupp,\n    part\nwhere\n    p_partkey = ps_partkey\n    and p_brand <> 'Brand#33'\n    and p_type not like 'STANDARD BURNISHED%'\n    and p_size in (1, 3, 47, 36, 42, 22, 20, 37)\n    and ps_suppkey not in (\n        select\n            s_suppkey\n        from\n            supplier\n        where\n            s_comment like '%Customer%Complaints%'\n    )\ngroup by\n    p_brand,\n    p_type,\n    p_size\norder by\n    supplier_cnt desc,\n    p_brand,\n    p_type,\n    p_size;\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q16_alt_1",
+          "formulation_type": "bad_supplier_relation",
+          "rewrite_family": "bad_supplier_filtered_relation",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q16_formulation_1_bad_supplier_relation.sql",
+          "sql": "with bad_suppliers as (\n    select\n        s.s_suppkey\n    from\n        supplier s\n    where\n        s.s_comment like '%Customer%Complaints%'\n)\nselect\n    p.p_brand,\n    p.p_type,\n    p.p_size,\n    count(distinct ps.ps_suppkey) as supplier_cnt\nfrom\n    part p\njoin partsupp ps\n    on ps.ps_partkey = p.p_partkey\nleft join bad_suppliers bs\n    on bs.s_suppkey = ps.ps_suppkey\nwhere\n    p.p_brand <> 'Brand#33'\n    and p.p_type not like 'STANDARD BURNISHED%'\n    and p.p_size in (1, 3, 47, 36, 42, 22, 20, 37)\n    and bs.s_suppkey is null\ngroup by\n    p.p_brand,\n    p.p_type,\n    p.p_size\norder by\n    supplier_cnt desc,\n    p.p_brand,\n    p.p_type,\n    p.p_size;\n",
+          "equivalence_rationale": "The disqualifying supplier set is materialized once and anti-joined on non-null supplier keys, preserving the same surviving partsupp rows before the grouped distinct count.",
+          "structural_change": "Factors the complaint-supplier filter into an explicit relation and replaces NOT IN with an equivalent left anti-join over non-null keys.",
+          "selection_reason": "Creates a planner-visible anti-join boundary while preserving exact grouped semantics.",
+          "exclusion_guardrails": [
+            "Only use this factorization because s_suppkey is non-null in the subquery relation.",
+            "Preserve count(distinct ps_suppkey) exactly."
+          ]
+        },
+        {
+          "formulation_id": "q16_alt_2",
+          "formulation_type": "filtered_parts_and_bad_suppliers",
+          "rewrite_family": "selective_derived_table_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q16_formulation_2_filtered_parts_and_bad_suppliers.sql",
+          "sql": "with filtered_parts as (\n    select\n        p.p_partkey,\n        p.p_brand,\n        p.p_type,\n        p.p_size\n    from\n        part p\n    where\n        p.p_brand <> 'Brand#33'\n        and p.p_type not like 'STANDARD BURNISHED%'\n        and p.p_size in (1, 3, 47, 36, 42, 22, 20, 37)\n),\nbad_suppliers as (\n    select\n        s.s_suppkey\n    from\n        supplier s\n    where\n        s.s_comment like '%Customer%Complaints%'\n)\nselect\n    fp.p_brand,\n    fp.p_type,\n    fp.p_size,\n    count(distinct ps.ps_suppkey) as supplier_cnt\nfrom\n    filtered_parts fp\njoin partsupp ps\n    on ps.ps_partkey = fp.p_partkey\nleft join bad_suppliers bs\n    on bs.s_suppkey = ps.ps_suppkey\nwhere\n    bs.s_suppkey is null\ngroup by\n    fp.p_brand,\n    fp.p_type,\n    fp.p_size\norder by\n    supplier_cnt desc,\n    fp.p_brand,\n    fp.p_type,\n    fp.p_size;\n",
+          "equivalence_rationale": "The selective part predicates are isolated before the unchanged partsupp join, and the explicit bad-supplier relation preserves the same anti-membership filter.",
+          "structural_change": "Factors both the selective part relation and the disqualifying supplier relation before the final grouped distinct aggregation.",
+          "selection_reason": "Adds a second safe derived-table boundary with different join-search implications.",
+          "exclusion_guardrails": [
+            "Do not drop part keys from the filtered relation.",
+            "Keep the anti-membership filter on supplier keys exact."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "not_exists_translation",
+          "rejection_reason": "A NOT EXISTS formulation was unnecessary once exact anti-join rewrites were accepted.",
+          "planner_reason": "Would not add distinct benchmark value beyond the accepted anti-join formulations."
+        },
+        {
+          "rewrite_family": "preaggregate_supplier_counts",
+          "rejection_reason": "Pre-aggregating distinct supplier counts before the final grouping risks changing semantics.",
+          "equivalence_concern": "Distinct counts are not safe to push below the preserved grouping keys here."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "1-2 accepted rewrites",
+      "accepted_rewrite_families": [
+        "bad_supplier_filtered_relation",
+        "selective_derived_table_factoring"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q16_alt_1",
+          "q16_alt_2"
+        ]
+      }
     },
     {
       "template_id": "q17",
@@ -454,7 +1185,244 @@
           "rejection_reason": "Deduplicating lineitems is not allowed.",
           "equivalence_concern": "Would change the summed extendedprice result."
         }
-      ]
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "decorrelation",
+        "window_after_safe_join",
+        "selective_subgraph_plus_decorrelation"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Repo-level exact ordered-output validation against the running Docker-backed Postgres instance on tpch_sf_1.",
+        "accepted_formulation_ids": [
+          "q17_alt_1",
+          "q17_alt_2",
+          "q17_alt_3"
+        ]
+      }
+    },
+    {
+      "template_id": "q18",
+      "query_instance_id": "q18-q18-p0000-sf-1.0",
+      "parameter_set_id": "q18-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The query combines ordered LIMIT behavior with nested aggregation on a large join graph.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Top-N plus nested aggregation makes exact duplicate-preserving ordered equivalence too brittle."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "top_n_nested_aggregate_factoring",
+          "rejection_reason": "Equivalent rewrites are difficult to defend under exact ordered-output semantics.",
+          "equivalence_concern": "Ordering ties and aggregation boundaries are both fragile."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Top-N plus nested aggregation makes exact duplicate-preserving ordered equivalence too brittle."
+    },
+    {
+      "template_id": "q19",
+      "query_instance_id": "q19-q19-p0000-sf-1.0",
+      "parameter_set_id": "q19-p0000",
+      "scale_factor": 1.0,
+      "screening_rationale": "Disjunctive two-table aggregate with common lineitem filters and a single-row output. Safe rewrites can factor shared predicates or split mutually exclusive brand branches while preserving every qualifying joined row exactly once.",
+      "baseline_suitability": {
+        "status": "accepted",
+        "summary": "The three OR branches are safe to refactor only if each matched lineitem-part row remains represented exactly once under the brand-specific quantity, container, and size filters."
+      },
+      "baseline_sql_path": "query_compare/sql/q19_base.sql",
+      "baseline_sql": "select\n    sum(l_extendedprice* (1 - l_discount)) as revenue\nfrom\n    lineitem,\n    part\nwhere\n    (\n        p_partkey = l_partkey\n        and p_brand = 'Brand#24'\n        and p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')\n        and l_quantity >= 2 and l_quantity <= 2 + 10\n        and p_size between 1 and 5\n        and l_shipmode in ('AIR', 'AIR REG')\n        and l_shipinstruct = 'DELIVER IN PERSON'\n    )\n    or\n    (\n        p_partkey = l_partkey\n        and p_brand = 'Brand#15'\n        and p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')\n        and l_quantity >= 16 and l_quantity <= 16 + 10\n        and p_size between 1 and 10\n        and l_shipmode in ('AIR', 'AIR REG')\n        and l_shipinstruct = 'DELIVER IN PERSON'\n    )\n    or\n    (\n        p_partkey = l_partkey\n        and p_brand = 'Brand#52'\n        and p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')\n        and l_quantity >= 23 and l_quantity <= 23 + 10\n        and p_size between 1 and 15\n        and l_shipmode in ('AIR', 'AIR REG')\n        and l_shipinstruct = 'DELIVER IN PERSON'\n    );\n",
+      "accepted_formulations": [
+        {
+          "formulation_id": "q19_alt_1",
+          "formulation_type": "factored_common_filters",
+          "rewrite_family": "predicate_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q19_formulation_1_factored_common_filters.sql",
+          "sql": "select\n    sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\nfrom\n    lineitem l\njoin part p\n    on p.p_partkey = l.l_partkey\nwhere\n    l.l_shipmode in ('AIR', 'AIR REG')\n    and l.l_shipinstruct = 'DELIVER IN PERSON'\n    and (\n        (\n            p.p_brand = 'Brand#24'\n            and p.p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')\n            and l.l_quantity between 2 and 12\n            and p.p_size between 1 and 5\n        )\n        or\n        (\n            p.p_brand = 'Brand#15'\n            and p.p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')\n            and l.l_quantity between 16 and 26\n            and p.p_size between 1 and 10\n        )\n        or\n        (\n            p.p_brand = 'Brand#52'\n            and p.p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')\n            and l.l_quantity between 23 and 33\n            and p.p_size between 1 and 15\n        )\n    );\n",
+          "equivalence_rationale": "The lineitem-part join remains duplicate-preserving and the common ship-mode and ship-instruct predicates are merely factored outside the mutually exclusive brand branches.",
+          "structural_change": "Pulls the common lineitem predicates above the branch-specific brand, container, size, and quantity checks.",
+          "selection_reason": "Cleanest q19 rewrite to test whether common predicate factoring changes plan shape without changing the matched row set.",
+          "exclusion_guardrails": [
+            "Keep the join on part key in every branch-equivalent path.",
+            "Do not weaken the branch-specific quantity bounds."
+          ]
+        },
+        {
+          "formulation_id": "q19_alt_2",
+          "formulation_type": "union_all_branch_sums",
+          "rewrite_family": "or_expansion_with_union_all",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q19_formulation_2_union_all_branch_sums.sql",
+          "sql": "select\n    sum(branch_revenues.revenue) as revenue\nfrom\n    (\n        select\n            sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\n        from\n            lineitem l\n        join part p\n            on p.p_partkey = l.l_partkey\n        where\n            p.p_brand = 'Brand#24'\n            and p.p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')\n            and l.l_quantity between 2 and 12\n            and p.p_size between 1 and 5\n            and l.l_shipmode in ('AIR', 'AIR REG')\n            and l.l_shipinstruct = 'DELIVER IN PERSON'\n        union all\n        select\n            sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\n        from\n            lineitem l\n        join part p\n            on p.p_partkey = l.l_partkey\n        where\n            p.p_brand = 'Brand#15'\n            and p.p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')\n            and l.l_quantity between 16 and 26\n            and p.p_size between 1 and 10\n            and l.l_shipmode in ('AIR', 'AIR REG')\n            and l.l_shipinstruct = 'DELIVER IN PERSON'\n        union all\n        select\n            sum(l.l_extendedprice * (1 - l.l_discount)) as revenue\n        from\n            lineitem l\n        join part p\n            on p.p_partkey = l.l_partkey\n        where\n            p.p_brand = 'Brand#52'\n            and p.p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')\n            and l.l_quantity between 23 and 33\n            and p.p_size between 1 and 15\n            and l.l_shipmode in ('AIR', 'AIR REG')\n            and l.l_shipinstruct = 'DELIVER IN PERSON'\n    ) as branch_revenues;\n",
+          "equivalence_rationale": "Each OR branch is isolated into a separate aggregate arm and recombined with UNION ALL; because the brand predicates are distinct, each qualifying joined row contributes to exactly one branch sum.",
+          "structural_change": "Expands the OR predicate into three branch aggregates joined by UNION ALL and a final scalar sum.",
+          "selection_reason": "Most structurally different q19 rewrite, with clear branch isolation and duplicate-preserving recombination.",
+          "exclusion_guardrails": [
+            "Require UNION ALL, not UNION.",
+            "Only split into branches whose predicates are provably disjoint."
+          ]
+        },
+        {
+          "formulation_id": "q19_alt_3",
+          "formulation_type": "target_parts_and_shipped_lines",
+          "rewrite_family": "join_island_factoring",
+          "logical_review_status": "accepted",
+          "sql_path": "query_compare/sql/q19_formulation_3_target_parts_and_shipped_lines.sql",
+          "sql": "with shipped_lines as (\n    select\n        l.l_partkey,\n        l.l_quantity,\n        l.l_extendedprice,\n        l.l_discount\n    from\n        lineitem l\n    where\n        l.l_shipmode in ('AIR', 'AIR REG')\n        and l.l_shipinstruct = 'DELIVER IN PERSON'\n),\ntarget_parts as (\n    select\n        p.p_partkey,\n        1 as family_id\n    from\n        part p\n    where\n        p.p_brand = 'Brand#24'\n        and p.p_container in ('SM CASE', 'SM BOX', 'SM PACK', 'SM PKG')\n        and p.p_size between 1 and 5\n    union all\n    select\n        p.p_partkey,\n        2 as family_id\n    from\n        part p\n    where\n        p.p_brand = 'Brand#15'\n        and p.p_container in ('MED BAG', 'MED BOX', 'MED PKG', 'MED PACK')\n        and p.p_size between 1 and 10\n    union all\n    select\n        p.p_partkey,\n        3 as family_id\n    from\n        part p\n    where\n        p.p_brand = 'Brand#52'\n        and p.p_container in ('LG CASE', 'LG BOX', 'LG PACK', 'LG PKG')\n        and p.p_size between 1 and 15\n)\nselect\n    sum(sl.l_extendedprice * (1 - sl.l_discount)) as revenue\nfrom\n    shipped_lines sl\njoin target_parts tp\n    on tp.p_partkey = sl.l_partkey\nwhere\n    (tp.family_id = 1 and sl.l_quantity between 2 and 12)\n    or (tp.family_id = 2 and sl.l_quantity between 16 and 26)\n    or (tp.family_id = 3 and sl.l_quantity between 23 and 33);\n",
+          "equivalence_rationale": "The common lineitem filters and the brand-specific part filters are separated into two duplicate-preserving islands, then rejoined so each matched lineitem-part row is still counted once under its family-specific quantity band.",
+          "structural_change": "Splits q19 into filtered shipped-line and target-part islands before the final family-aware quantity filter.",
+          "selection_reason": "Adds another planner-relevant subgraph factoring pattern without relying on semijoin semantics.",
+          "exclusion_guardrails": [
+            "Keep target_parts one row per part key.",
+            "Preserve the family-specific quantity filter after the rejoin."
+          ]
+        }
+      ],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "semi_join_substitution",
+          "rejection_reason": "Using EXISTS or IN as the primary rewrite family is out of scope for this duplicate-preserving join benchmark.",
+          "planner_reason": "Would blur the intended comparison between duplicate-preserving joins and semijoin behavior."
+        },
+        {
+          "rewrite_family": "early_aggregation",
+          "rejection_reason": "Aggregating before the lineitem quantity bands are applied is not equivalent.",
+          "equivalence_concern": "Would merge rows whose quantities should be tested independently against the branch predicates."
+        },
+        {
+          "rewrite_family": "deduplicating_rewrite",
+          "rejection_reason": "DISTINCT or UNION-style deduplication is not allowed.",
+          "equivalence_concern": "Would change row multiplicity relative to the duplicate-preserving baseline join."
+        }
+      ],
+      "template_status": "included",
+      "rewrite_budget_target": "2-3 accepted rewrites",
+      "accepted_rewrite_families": [
+        "predicate_factoring",
+        "or_expansion_with_union_all",
+        "join_island_factoring"
+      ],
+      "docker_equivalence_validation": {
+        "status": "exact_match_confirmed_on_docker_backed_postgres",
+        "database": "tpch_sf_1",
+        "validation_method": "Docker-backed exact-output validation against the running Postgres container, followed by repo-level exact revalidation.",
+        "accepted_formulation_ids": [
+          "q19_alt_1",
+          "q19_alt_2",
+          "q19_alt_3"
+        ],
+        "baseline_observed_rows": [
+          "3787850.8854"
+        ],
+        "accepted_formulation_observed_rows": {
+          "q19_alt_1": [
+            "3787850.8854"
+          ],
+          "q19_alt_2": [
+            "3787850.8854"
+          ],
+          "q19_alt_3": [
+            "3787850.8854"
+          ]
+        }
+      }
+    },
+    {
+      "template_id": "q20",
+      "query_instance_id": "q20-q20-p0000-sf-1.0",
+      "parameter_set_id": "q20-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The template relies on nested IN and correlated quantity thresholds that are easy to perturb semantically.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Nested anti-semijoin-style supplier filtering is too brittle under exact duplicate-preserving rewrites."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "anti_semijoin_factoring",
+          "rejection_reason": "Anti-semijoin rewrites risk changing surviving supplier sets.",
+          "equivalence_concern": "Null and duplicate-sensitive semantics are too brittle."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Nested anti-semijoin-style supplier filtering is too brittle under exact duplicate-preserving rewrites."
+    },
+    {
+      "template_id": "q21",
+      "query_instance_id": "q21-q21-p0000-sf-1.0",
+      "parameter_set_id": "q21-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The template relies on delicate existence filters over multiple lineitem aliases.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "EXISTS and NOT EXISTS semantics are too close to semijoin and anti-join rewrites."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "exists_not_exists_factoring",
+          "rejection_reason": "Equivalent rewrites are hard to defend without altering row survival.",
+          "equivalence_concern": "Semi/anti-join semantics are duplicate-sensitive here."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "EXISTS and NOT EXISTS semantics are too close to semijoin and anti-join rewrites."
+    },
+    {
+      "template_id": "q22",
+      "query_instance_id": "q22-q22-p0000-sf-1.0",
+      "parameter_set_id": "q22-p0000",
+      "scale_factor": 1.0,
+      "template_status": "excluded_after_screening",
+      "rewrite_budget_target": "excluded before formulation",
+      "screening_rationale": "The customer phone-prefix filter interacts with correlated average and anti-membership logic.",
+      "baseline_suitability": {
+        "status": "rejected",
+        "summary": "Null-sensitive anti-membership and correlated aggregation semantics are too brittle."
+      },
+      "accepted_rewrite_families": [],
+      "accepted_formulations": [],
+      "rejected_formulations": [
+        {
+          "rewrite_family": "anti_membership_factoring",
+          "rejection_reason": "Null-sensitive anti-membership rewrites are too risky for exact equivalence.",
+          "equivalence_concern": "NOT IN style behavior is brittle under rewriting."
+        }
+      ],
+      "docker_equivalence_validation": {
+        "status": "not_attempted_due_screening_risk",
+        "database": "tpch_sf_1",
+        "validation_method": "Template was screened against feasible-only policy before rewrite implementation."
+      },
+      "exclusion_reason": "Null-sensitive anti-membership and correlated aggregation semantics are too brittle."
     }
   ]
 }

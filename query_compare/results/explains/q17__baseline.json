@@ -1,5 +1,5 @@
 {
-  "Execution Time": 577.434,
+  "Execution Time": 626.71,
   "JIT": {
     "Functions": 33,
     "Options": {
@@ -9,18 +9,18 @@
       "Optimization": false
     },
     "Timing": {
-      "Emission": 8.736,
-      "Generation": 0.612,
+      "Emission": 9.422,
+      "Generation": 1.149,
       "Inlining": 0.0,
-      "Optimization": 0.429,
-      "Total": 9.777
+      "Optimization": 0.92,
+      "Total": 11.49
     }
   },
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 1,
-    "Actual Startup Time": 569.827,
-    "Actual Total Time": 569.886,
+    "Actual Startup Time": 619.149,
+    "Actual Total Time": 619.211,
     "Async Capable": false,
     "Node Type": "Aggregate",
     "Parallel Aware": false,
@@ -31,8 +31,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 523,
-        "Actual Startup Time": 13.287,
-        "Actual Total Time": 569.797,
+        "Actual Startup Time": 15.081,
+        "Actual Total Time": 619.103,
         "Async Capable": false,
         "Hash Cond": "(lineitem.l_partkey = part.p_partkey)",
         "Inner Unique": true,
@@ -47,8 +47,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 6001215,
-            "Actual Startup Time": 0.01,
-            "Actual Total Time": 238.172,
+            "Actual Startup Time": 0.035,
+            "Actual Total Time": 248.279,
             "Alias": "lineitem",
             "Async Capable": false,
             "Node Type": "Seq Scan",
@@ -63,8 +63,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 210,
-            "Actual Startup Time": 12.498,
-            "Actual Total Time": 12.555,
+            "Actual Startup Time": 14.282,
+            "Actual Total Time": 14.342,
             "Async Capable": false,
             "Hash Batches": 1,
             "Hash Buckets": 1024,
@@ -80,8 +80,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 210,
-                "Actual Startup Time": 5.267,
-                "Actual Total Time": 12.525,
+                "Actual Startup Time": 6.364,
+                "Actual Total Time": 14.31,
                 "Async Capable": false,
                 "Node Type": "Gather",
                 "Parallel Aware": false,
@@ -92,8 +92,8 @@
                   {
                     "Actual Loops": 3,
                     "Actual Rows": 70,
-                    "Actual Startup Time": 3.143,
-                    "Actual Total Time": 7.36,
+                    "Actual Startup Time": 3.523,
+                    "Actual Total Time": 7.852,
                     "Alias": "part",
                     "Async Capable": false,
                     "Filter": "((p_brand = 'Brand#32'::bpchar) AND (p_container = 'MED BOX'::bpchar))",
@@ -122,8 +122,8 @@
           {
             "Actual Loops": 6219,
             "Actual Rows": 1,
-            "Actual Startup Time": 0.016,
-            "Actual Total Time": 0.017,
+            "Actual Startup Time": 0.02,
+            "Actual Total Time": 0.02,
             "Async Capable": false,
             "Node Type": "Aggregate",
             "Parallel Aware": false,
@@ -136,7 +136,7 @@
                 "Actual Loops": 6219,
                 "Actual Rows": 31,
                 "Actual Startup Time": 0.003,
-                "Actual Total Time": 0.014,
+                "Actual Total Time": 0.017,
                 "Alias": "lineitem_1",
                 "Async Capable": false,
                 "Exact Heap Blocks": 190241,
@@ -186,6 +186,6 @@
     "Strategy": "Plain",
     "Total Cost": 196009.07
   },
-  "Planning Time": 0.485,
+  "Planning Time": 0.418,
   "Triggers": []
 }

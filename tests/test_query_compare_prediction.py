@@ -22,9 +22,7 @@ def test_load_selected_estimator_uses_manifest_selected_family(tmp_path: Path) -
                     "planner_total_cost": "random_forest"
                 },
                 "final_model_input_columns_per_model": {
-                    "random_forest": {
-                        "planner_total_cost": ["feature_a", "feature_b"]
-                    }
+                    "random_forest": {"planner_total_cost": ["feature_a", "feature_b"]}
                 },
                 "model_artifact_paths": {
                     "planner_total_cost": {"random_forest": "selected.pkl"}
@@ -36,8 +34,10 @@ def test_load_selected_estimator_uses_manifest_selected_family(tmp_path: Path) -
     original_root = query_compare_prediction.ROOT_DIR
     query_compare_prediction.ROOT_DIR = tmp_path
     try:
-        family, feature_columns, estimator = query_compare_prediction.load_selected_estimator(
-            manifest_path=manifest_path
+        family, feature_columns, estimator = (
+            query_compare_prediction.load_selected_estimator(
+                manifest_path=manifest_path
+            )
         )
     finally:
         query_compare_prediction.ROOT_DIR = original_root
@@ -47,7 +47,9 @@ def test_load_selected_estimator_uses_manifest_selected_family(tmp_path: Path) -
     assert estimator == {"sentinel": "ok"}
 
 
-def test_load_formulations_uses_query_compare_paths(tmp_path: Path) -> None:
+def test_load_formulations_uses_query_compare_paths_and_skips_excluded_templates(
+    tmp_path: Path,
+) -> None:
     benchmark_path = tmp_path / "benchmark.json"
     benchmark_path.write_text(
         json.dumps(
@@ -55,6 +57,7 @@ def test_load_formulations_uses_query_compare_paths(tmp_path: Path) -> None:
                 "templates": [
                     {
                         "template_id": "q3",
+                        "template_status": "included",
                         "parameter_set_id": "q3-p0000",
                         "scale_factor": 1.0,
                         "baseline_sql": "select 1;\n",
@@ -65,18 +68,26 @@ def test_load_formulations_uses_query_compare_paths(tmp_path: Path) -> None:
                                 "formulation_type": "explicit_inner_join",
                                 "sql": "select 2;\n",
                                 "sql_path": (
-                                    "query_compare/sql/"
-                                    "custom_q3_formulation.sql"
+                                    "query_compare/sql/custom_q3_formulation.sql"
                                 ),
                             }
                         ],
-                    }
+                    },
+                    {
+                        "template_id": "q4",
+                        "template_status": "excluded_after_screening",
+                        "parameter_set_id": "q4-p0000",
+                        "scale_factor": 1.0,
+                        "accepted_formulations": [],
+                    },
                 ]
             }
         )
     )
 
-    formulations = query_compare_prediction.load_formulations(benchmark_path=benchmark_path)
+    formulations = query_compare_prediction.load_formulations(
+        benchmark_path=benchmark_path
+    )
 
     assert [formulation.formulation_label for formulation in formulations] == [
         "baseline",
@@ -221,9 +232,7 @@ def test_predict_query_compare_costs_writes_ranked_outputs(
                 "Plan Rows": 10,
                 "Plan Width": 5,
                 "Startup Cost": 0.0,
-                "Total Cost": 10.0
-                if "select 1" in kwargs["sql_text"]
-                else 8.0,
+                "Total Cost": 10.0 if "select 1" in kwargs["sql_text"] else 8.0,
             },
             "Execution Time": 15.0 if "select 1" in kwargs["sql_text"] else 9.0,
         },
@@ -253,10 +262,7 @@ def test_predict_query_compare_costs_writes_ranked_outputs(
     (tmp_path / "query_compare" / "sql").mkdir(parents=True)
     (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
     (
-        tmp_path
-        / "query_compare"
-        / "sql"
-        / "q3_formulation_1_explicit_inner_join.sql"
+        tmp_path / "query_compare" / "sql" / "q3_formulation_1_explicit_inner_join.sql"
     ).write_text("select 2;\n")
 
     try:
@@ -309,9 +315,7 @@ def test_predict_query_compare_costs_writes_ranked_outputs(
     assert summary["templates"][0]["model_vs_runtime_agree"] is True
     assert summary["templates"][0]["all_signals_agree"] is True
     assert summary["templates"][0]["planner_vs_model_dense_rank_correlation"] == 1.0
-    assert (
-        summary["templates"][0]["planner_vs_runtime_dense_rank_correlation"] == 1.0
-    )
+    assert summary["templates"][0]["planner_vs_runtime_dense_rank_correlation"] == 1.0
     assert summary["templates"][0]["model_vs_runtime_dense_rank_correlation"] == 1.0
 
 
@@ -369,9 +373,7 @@ def test_predict_query_compare_costs_defaults_runtime_fields_to_null(
                 "Plan Rows": 10,
                 "Plan Width": 5,
                 "Startup Cost": 0.0,
-                "Total Cost": 10.0
-                if "select 1" in kwargs["sql_text"]
-                else 8.0,
+                "Total Cost": 10.0 if "select 1" in kwargs["sql_text"] else 8.0,
             }
         },
     )
@@ -400,10 +402,7 @@ def test_predict_query_compare_costs_defaults_runtime_fields_to_null(
     (tmp_path / "query_compare" / "sql").mkdir(parents=True)
     (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
     (
-        tmp_path
-        / "query_compare"
-        / "sql"
-        / "q3_formulation_1_explicit_inner_join.sql"
+        tmp_path / "query_compare" / "sql" / "q3_formulation_1_explicit_inner_join.sql"
     ).write_text("select 2;\n")
 
     try:
@@ -540,10 +539,7 @@ def test_predict_query_compare_costs_summary_handles_runtime_disagreement(
     (tmp_path / "query_compare" / "sql").mkdir(parents=True)
     (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
     (
-        tmp_path
-        / "query_compare"
-        / "sql"
-        / "q3_formulation_1_explicit_inner_join.sql"
+        tmp_path / "query_compare" / "sql" / "q3_formulation_1_explicit_inner_join.sql"
     ).write_text("select 2;\n")
     (
         tmp_path
@@ -659,10 +655,7 @@ def test_predict_query_compare_costs_summary_treats_tied_winners_as_ambiguous(
     (tmp_path / "query_compare" / "sql").mkdir(parents=True)
     (tmp_path / "query_compare" / "sql" / "q3_base.sql").write_text("select 1;\n")
     (
-        tmp_path
-        / "query_compare"
-        / "sql"
-        / "q3_formulation_1_explicit_inner_join.sql"
+        tmp_path / "query_compare" / "sql" / "q3_formulation_1_explicit_inner_join.sql"
     ).write_text("select 2;\n")
 
     try:

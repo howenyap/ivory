@@ -1,5 +1,5 @@
 {
-  "Execution Time": 294.626,
+  "Execution Time": 351.603,
   "JIT": {
     "Functions": 64,
     "Options": {
@@ -9,18 +9,18 @@
       "Optimization": false
     },
     "Timing": {
-      "Emission": 19.203,
-      "Generation": 1.665,
+      "Emission": 24.932,
+      "Generation": 2.167,
       "Inlining": 0.0,
-      "Optimization": 0.98,
-      "Total": 21.848
+      "Optimization": 1.118,
+      "Total": 28.217
     }
   },
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 1,
-    "Actual Startup Time": 279.742,
-    "Actual Total Time": 287.376,
+    "Actual Startup Time": 335.243,
+    "Actual Total Time": 343.773,
     "Async Capable": false,
     "Inner Unique": true,
     "Join Type": "Inner",
@@ -32,8 +32,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 1,
-        "Actual Startup Time": 279.706,
-        "Actual Total Time": 287.339,
+        "Actual Startup Time": 335.213,
+        "Actual Total Time": 343.743,
         "Async Capable": false,
         "Inner Unique": true,
         "Join Filter": "((sum((l.l_extendedprice * ('1'::numeric - l.l_discount)))) = (max((sum((l_1.l_extendedprice * ('1'::numeric - l_1.l_discount)))))))",
@@ -47,8 +47,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 10000,
-            "Actual Startup Time": 140.431,
-            "Actual Total Time": 148.863,
+            "Actual Startup Time": 173.66,
+            "Actual Total Time": 182.996,
             "Async Capable": false,
             "Group Key": [
               "l.l_suppkey"
@@ -62,9 +62,9 @@
             "Plans": [
               {
                 "Actual Loops": 1,
-                "Actual Rows": 29991,
-                "Actual Startup Time": 140.418,
-                "Actual Total Time": 144.131,
+                "Actual Rows": 29988,
+                "Actual Startup Time": 173.634,
+                "Actual Total Time": 178.03,
                 "Async Capable": false,
                 "Node Type": "Gather Merge",
                 "Parallel Aware": false,
@@ -74,9 +74,9 @@
                 "Plans": [
                   {
                     "Actual Loops": 3,
-                    "Actual Rows": 9997,
-                    "Actual Startup Time": 134.449,
-                    "Actual Total Time": 134.924,
+                    "Actual Rows": 9996,
+                    "Actual Startup Time": 166.463,
+                    "Actual Total Time": 167.1,
                     "Async Capable": false,
                     "Node Type": "Sort",
                     "Parallel Aware": false,
@@ -86,9 +86,9 @@
                     "Plans": [
                       {
                         "Actual Loops": 3,
-                        "Actual Rows": 9997,
-                        "Actual Startup Time": 131.251,
-                        "Actual Total Time": 133.387,
+                        "Actual Rows": 9996,
+                        "Actual Startup Time": 162.038,
+                        "Actual Total Time": 165.19,
                         "Async Capable": false,
                         "Disk Usage": 0,
                         "Group Key": [
@@ -107,12 +107,12 @@
                           {
                             "Actual Loops": 3,
                             "Actual Rows": 76656,
-                            "Actual Startup Time": 10.646,
-                            "Actual Total Time": 101.998,
+                            "Actual Startup Time": 13.334,
+                            "Actual Total Time": 123.623,
                             "Alias": "l",
                             "Async Capable": false,
-                            "Exact Heap Blocks": 11100,
-                            "Lossy Heap Blocks": 10609,
+                            "Exact Heap Blocks": 10986,
+                            "Lossy Heap Blocks": 10761,
                             "Node Type": "Bitmap Heap Scan",
                             "Parallel Aware": true,
                             "Parent Relationship": "Outer",
@@ -122,8 +122,8 @@
                               {
                                 "Actual Loops": 1,
                                 "Actual Rows": 229968,
-                                "Actual Startup Time": 10.877,
-                                "Actual Total Time": 10.878,
+                                "Actual Startup Time": 12.539,
+                                "Actual Total Time": 12.539,
                                 "Async Capable": false,
                                 "Index Cond": "((l_shipdate >= '1995-06-01'::date) AND (l_shipdate < '1995-09-01 00:00:00'::timestamp without time zone))",
                                 "Index Name": "idx_lineitem_shipdate",
@@ -169,7 +169,7 @@
                     ],
                     "Sort Method": "quicksort",
                     "Sort Space Type": "Memory",
-                    "Sort Space Used": 1322,
+                    "Sort Space Used": 1321,
                     "Startup Cost": 144435.07,
                     "Total Cost": 144459.99,
                     "Workers": [
@@ -201,8 +201,8 @@
           {
             "Actual Loops": 10000,
             "Actual Rows": 1,
-            "Actual Startup Time": 0.014,
-            "Actual Total Time": 0.014,
+            "Actual Startup Time": 0.016,
+            "Actual Total Time": 0.016,
             "Async Capable": false,
             "Node Type": "Materialize",
             "Parallel Aware": false,
@@ -213,8 +213,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 1,
-                "Actual Startup Time": 136.711,
-                "Actual Total Time": 137.157,
+                "Actual Startup Time": 158.895,
+                "Actual Total Time": 159.365,
                 "Async Capable": false,
                 "Node Type": "Aggregate",
                 "Parallel Aware": false,
@@ -226,8 +226,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 10000,
-                    "Actual Startup Time": 129.336,
-                    "Actual Total Time": 136.848,
+                    "Actual Startup Time": 150.9,
+                    "Actual Total Time": 159.036,
                     "Async Capable": false,
                     "Group Key": [
                       "l_1.l_suppkey"
@@ -241,9 +241,9 @@
                     "Plans": [
                       {
                         "Actual Loops": 1,
-                        "Actual Rows": 29982,
-                        "Actual Startup Time": 129.321,
-                        "Actual Total Time": 132.118,
+                        "Actual Rows": 29985,
+                        "Actual Startup Time": 150.885,
+                        "Actual Total Time": 154.009,
                         "Async Capable": false,
                         "Node Type": "Gather Merge",
                         "Parallel Aware": false,
@@ -253,9 +253,9 @@
                         "Plans": [
                           {
                             "Actual Loops": 3,
-                            "Actual Rows": 9994,
-                            "Actual Startup Time": 123.212,
-                            "Actual Total Time": 123.7,
+                            "Actual Rows": 9995,
+                            "Actual Startup Time": 143.962,
+                            "Actual Total Time": 144.56,
                             "Async Capable": false,
                             "Node Type": "Sort",
                             "Parallel Aware": false,
@@ -265,9 +265,9 @@
                             "Plans": [
                               {
                                 "Actual Loops": 3,
-                                "Actual Rows": 9994,
-                                "Actual Startup Time": 120.127,
-                                "Actual Total Time": 122.158,
+                                "Actual Rows": 9995,
+                                "Actual Startup Time": 140.599,
+                                "Actual Total Time": 142.9,
                                 "Async Capable": false,
                                 "Disk Usage": 0,
                                 "Group Key": [
@@ -286,12 +286,12 @@
                                   {
                                     "Actual Loops": 3,
                                     "Actual Rows": 76656,
-                                    "Actual Startup Time": 8.835,
-                                    "Actual Total Time": 94.163,
+                                    "Actual Startup Time": 9.679,
+                                    "Actual Total Time": 106.554,
                                     "Alias": "l_1",
                                     "Async Capable": false,
-                                    "Exact Heap Blocks": 12101,
-                                    "Lossy Heap Blocks": 11765,
+                                    "Exact Heap Blocks": 12062,
+                                    "Lossy Heap Blocks": 11781,
                                     "Node Type": "Bitmap Heap Scan",
                                     "Parallel Aware": true,
                                     "Parent Relationship": "Outer",
@@ -301,8 +301,8 @@
                                       {
                                         "Actual Loops": 1,
                                         "Actual Rows": 229968,
-                                        "Actual Startup Time": 10.585,
-                                        "Actual Total Time": 10.585,
+                                        "Actual Startup Time": 11.905,
+                                        "Actual Total Time": 11.905,
                                         "Async Capable": false,
                                         "Index Cond": "((l_shipdate >= '1995-06-01'::date) AND (l_shipdate < '1995-09-01 00:00:00'::timestamp without time zone))",
                                         "Index Name": "idx_lineitem_shipdate",
@@ -394,8 +394,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 1,
-        "Actual Startup Time": 0.021,
-        "Actual Total Time": 0.021,
+        "Actual Startup Time": 0.024,
+        "Actual Total Time": 0.024,
         "Alias": "s",
         "Async Capable": false,
         "Index Cond": "(s_suppkey = l.l_suppkey)",
@@ -415,6 +415,6 @@
     "Startup Cost": 293594.41,
     "Total Cost": 296462.83
   },
-  "Planning Time": 0.42,
+  "Planning Time": 0.551,
   "Triggers": []
 }

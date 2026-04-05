@@ -1,5 +1,5 @@
 {
-  "Execution Time": 381.344,
+  "Execution Time": 472.566,
   "JIT": {
     "Functions": 61,
     "Options": {
@@ -9,18 +9,18 @@
       "Optimization": false
     },
     "Timing": {
-      "Emission": 14.206,
-      "Generation": 1.188,
+      "Emission": 16.832,
+      "Generation": 1.291,
       "Inlining": 0.0,
-      "Optimization": 0.868,
-      "Total": 16.262
+      "Optimization": 0.934,
+      "Total": 19.057
     }
   },
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 42,
-    "Actual Startup Time": 372.432,
-    "Actual Total Time": 373.73,
+    "Actual Startup Time": 461.959,
+    "Actual Total Time": 463.919,
     "Async Capable": false,
     "Node Type": "Sort",
     "Parallel Aware": false,
@@ -30,8 +30,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 42,
-        "Actual Startup Time": 372.412,
-        "Actual Total Time": 373.712,
+        "Actual Startup Time": 461.944,
+        "Actual Total Time": 463.906,
         "Async Capable": false,
         "Disk Usage": 0,
         "Group Key": [
@@ -50,8 +50,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 150000,
-            "Actual Startup Time": 316.409,
-            "Actual Total Time": 365.024,
+            "Actual Startup Time": 403.72,
+            "Actual Total Time": 454.714,
             "Async Capable": false,
             "Group Key": [
               "customer.c_custkey"
@@ -65,9 +65,9 @@
             "Plans": [
               {
                 "Actual Loops": 1,
-                "Actual Rows": 344212,
-                "Actual Startup Time": 316.393,
-                "Actual Total Time": 343.719,
+                "Actual Rows": 344303,
+                "Actual Startup Time": 403.682,
+                "Actual Total Time": 432.01,
                 "Async Capable": false,
                 "Node Type": "Gather Merge",
                 "Parallel Aware": false,
@@ -77,9 +77,9 @@
                 "Plans": [
                   {
                     "Actual Loops": 3,
-                    "Actual Rows": 114737,
-                    "Actual Startup Time": 296.006,
-                    "Actual Total Time": 300.647,
+                    "Actual Rows": 114768,
+                    "Actual Startup Time": 381.515,
+                    "Actual Total Time": 386.622,
                     "Async Capable": false,
                     "Node Type": "Sort",
                     "Parallel Aware": false,
@@ -89,11 +89,11 @@
                     "Plans": [
                       {
                         "Actual Loops": 3,
-                        "Actual Rows": 114737,
-                        "Actual Startup Time": 265.984,
-                        "Actual Total Time": 281.783,
+                        "Actual Rows": 114768,
+                        "Actual Startup Time": 348.383,
+                        "Actual Total Time": 365.428,
                         "Async Capable": false,
-                        "Disk Usage": 3592,
+                        "Disk Usage": 1768,
                         "Group Key": [
                           "customer.c_custkey"
                         ],
@@ -110,8 +110,8 @@
                           {
                             "Actual Loops": 3,
                             "Actual Rows": 511281,
-                            "Actual Startup Time": 11.911,
-                            "Actual Total Time": 168.643,
+                            "Actual Startup Time": 13.879,
+                            "Actual Total Time": 222.201,
                             "Async Capable": false,
                             "Hash Cond": "(orders.o_custkey = customer.c_custkey)",
                             "Inner Unique": true,
@@ -125,8 +125,8 @@
                               {
                                 "Actual Loops": 3,
                                 "Actual Rows": 494613,
-                                "Actual Startup Time": 0.043,
-                                "Actual Total Time": 69.444,
+                                "Actual Startup Time": 0.037,
+                                "Actual Total Time": 80.227,
                                 "Alias": "orders",
                                 "Async Capable": false,
                                 "Filter": "((o_comment)::text !~~ '%pending%deposits%'::text)",
@@ -144,8 +144,8 @@
                               {
                                 "Actual Loops": 3,
                                 "Actual Rows": 50000,
-                                "Actual Startup Time": 11.692,
-                                "Actual Total Time": 11.693,
+                                "Actual Startup Time": 13.627,
+                                "Actual Total Time": 13.627,
                                 "Async Capable": false,
                                 "Hash Batches": 1,
                                 "Hash Buckets": 262144,
@@ -154,15 +154,15 @@
                                 "Original Hash Buckets": 262144,
                                 "Parallel Aware": true,
                                 "Parent Relationship": "Inner",
-                                "Peak Memory Usage": 7968,
+                                "Peak Memory Usage": 7936,
                                 "Plan Rows": 62500,
                                 "Plan Width": 4,
                                 "Plans": [
                                   {
                                     "Actual Loops": 3,
                                     "Actual Rows": 50000,
-                                    "Actual Startup Time": 0.034,
-                                    "Actual Total Time": 3.71,
+                                    "Actual Startup Time": 0.024,
+                                    "Actual Total Time": 3.741,
                                     "Alias": "customer",
                                     "Async Capable": false,
                                     "Heap Fetches": 0,
@@ -200,7 +200,7 @@
                             "Worker Number": 0
                           },
                           {
-                            "Disk Usage": 1752,
+                            "Disk Usage": 3584,
                             "HashAgg Batches": 5,
                             "Peak Memory Usage": 8241,
                             "Worker Number": 1
@@ -213,7 +213,7 @@
                     ],
                     "Sort Method": "external merge",
                     "Sort Space Type": "Disk",
-                    "Sort Space Used": 3776,
+                    "Sort Space Used": 2504,
                     "Startup Cost": 95991.38,
                     "Total Cost": 96366.38,
                     "Workers": [
@@ -226,7 +226,7 @@
                       {
                         "Sort Method": "external merge",
                         "Sort Space Type": "Disk",
-                        "Sort Space Used": 2504,
+                        "Sort Space Used": 3776,
                         "Worker Number": 1
                       }
                     ]
@@ -258,6 +258,6 @@
     "Startup Cost": 137253.49,
     "Total Cost": 137253.99
   },
-  "Planning Time": 1.107,
+  "Planning Time": 0.398,
   "Triggers": []
 }

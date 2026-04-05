@@ -1,5 +1,5 @@
 {
-  "Execution Time": 988.281,
+  "Execution Time": 700.836,
   "JIT": {
     "Functions": 156,
     "Options": {
@@ -9,18 +9,18 @@
       "Optimization": false
     },
     "Timing": {
-      "Emission": 91.08,
-      "Generation": 7.709,
+      "Emission": 32.248,
+      "Generation": 2.877,
       "Inlining": 0.0,
-      "Optimization": 2.09,
-      "Total": 100.879
+      "Optimization": 2.132,
+      "Total": 37.258
     }
   },
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 175,
-    "Actual Startup Time": 902.583,
-    "Actual Total Time": 958.592,
+    "Actual Startup Time": 636.067,
+    "Actual Total Time": 692.248,
     "Async Capable": false,
     "Group Key": [
       "nation.n_name",
@@ -35,8 +35,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 525,
-        "Actual Startup Time": 902.267,
-        "Actual Total Time": 958.443,
+        "Actual Startup Time": 635.77,
+        "Actual Total Time": 692.117,
         "Async Capable": false,
         "Node Type": "Gather Merge",
         "Parallel Aware": false,
@@ -47,8 +47,8 @@
           {
             "Actual Loops": 3,
             "Actual Rows": 175,
-            "Actual Startup Time": 861.51,
-            "Actual Total Time": 901.072,
+            "Actual Startup Time": 600.413,
+            "Actual Total Time": 640.219,
             "Async Capable": false,
             "Group Key": [
               "nation.n_name",
@@ -64,8 +64,8 @@
               {
                 "Actual Loops": 3,
                 "Actual Rows": 106809,
-                "Actual Startup Time": 861.332,
-                "Actual Total Time": 872.203,
+                "Actual Startup Time": 600.232,
+                "Actual Total Time": 611.189,
                 "Async Capable": false,
                 "Node Type": "Sort",
                 "Parallel Aware": false,
@@ -76,8 +76,8 @@
                   {
                     "Actual Loops": 3,
                     "Actual Rows": 106809,
-                    "Actual Startup Time": 749.163,
-                    "Actual Total Time": 815.654,
+                    "Actual Startup Time": 469.822,
+                    "Actual Total Time": 539.287,
                     "Async Capable": false,
                     "Hash Cond": "(orders.o_orderkey = lineitem.l_orderkey)",
                     "Inner Unique": false,
@@ -91,8 +91,8 @@
                       {
                         "Actual Loops": 3,
                         "Actual Rows": 500000,
-                        "Actual Startup Time": 0.049,
-                        "Actual Total Time": 44.558,
+                        "Actual Startup Time": 0.01,
+                        "Actual Total Time": 26.127,
                         "Alias": "orders",
                         "Async Capable": false,
                         "Node Type": "Seq Scan",
@@ -108,8 +108,8 @@
                       {
                         "Actual Loops": 3,
                         "Actual Rows": 106809,
-                        "Actual Startup Time": 644.784,
-                        "Actual Total Time": 644.832,
+                        "Actual Startup Time": 383.617,
+                        "Actual Total Time": 383.621,
                         "Async Capable": false,
                         "Hash Batches": 8,
                         "Hash Buckets": 65536,
@@ -125,8 +125,8 @@
                           {
                             "Actual Loops": 3,
                             "Actual Rows": 106809,
-                            "Actual Startup Time": 55.841,
-                            "Actual Total Time": 597.066,
+                            "Actual Startup Time": 21.168,
+                            "Actual Total Time": 349.204,
                             "Async Capable": false,
                             "Inner Unique": false,
                             "Join Filter": "(supplier.s_suppkey = lineitem.l_suppkey)",
@@ -140,8 +140,8 @@
                               {
                                 "Actual Loops": 3,
                                 "Actual Rows": 14209,
-                                "Actual Startup Time": 55.726,
-                                "Actual Total Time": 130.943,
+                                "Actual Startup Time": 21.137,
+                                "Actual Total Time": 71.935,
                                 "Async Capable": false,
                                 "Hash Cond": "(supplier.s_nationkey = nation.n_nationkey)",
                                 "Inner Unique": true,
@@ -155,8 +155,8 @@
                                   {
                                     "Actual Loops": 3,
                                     "Actual Rows": 14209,
-                                    "Actual Startup Time": 24.73,
-                                    "Actual Total Time": 97.119,
+                                    "Actual Startup Time": 9.716,
+                                    "Actual Total Time": 58.439,
                                     "Async Capable": false,
                                     "Hash Cond": "(partsupp.ps_suppkey = supplier.s_suppkey)",
                                     "Inner Unique": true,
@@ -170,8 +170,8 @@
                                       {
                                         "Actual Loops": 3,
                                         "Actual Rows": 14209,
-                                        "Actual Startup Time": 21.967,
-                                        "Actual Total Time": 86.689,
+                                        "Actual Startup Time": 7.486,
+                                        "Actual Total Time": 49.644,
                                         "Async Capable": false,
                                         "Hash Cond": "(partsupp.ps_partkey = part.p_partkey)",
                                         "Inner Unique": true,
@@ -185,8 +185,8 @@
                                           {
                                             "Actual Loops": 3,
                                             "Actual Rows": 266667,
-                                            "Actual Startup Time": 0.033,
-                                            "Actual Total Time": 39.633,
+                                            "Actual Startup Time": 0.011,
+                                            "Actual Total Time": 21.012,
                                             "Alias": "partsupp",
                                             "Async Capable": false,
                                             "Node Type": "Seq Scan",
@@ -202,8 +202,8 @@
                                           {
                                             "Actual Loops": 3,
                                             "Actual Rows": 3552,
-                                            "Actual Startup Time": 21.842,
-                                            "Actual Total Time": 21.843,
+                                            "Actual Startup Time": 7.42,
+                                            "Actual Total Time": 7.421,
                                             "Async Capable": false,
                                             "Hash Batches": 1,
                                             "Hash Buckets": 16384,
@@ -219,8 +219,8 @@
                                               {
                                                 "Actual Loops": 3,
                                                 "Actual Rows": 3552,
-                                                "Actual Startup Time": 0.036,
-                                                "Actual Total Time": 19.435,
+                                                "Actual Startup Time": 0.037,
+                                                "Actual Total Time": 6.596,
                                                 "Alias": "part",
                                                 "Async Capable": false,
                                                 "Filter": "((p_name)::text ~~ '%indian%'::text)",
@@ -248,8 +248,8 @@
                                       {
                                         "Actual Loops": 3,
                                         "Actual Rows": 10000,
-                                        "Actual Startup Time": 2.742,
-                                        "Actual Total Time": 2.743,
+                                        "Actual Startup Time": 2.218,
+                                        "Actual Total Time": 2.219,
                                         "Async Capable": false,
                                         "Hash Batches": 1,
                                         "Hash Buckets": 16384,
@@ -265,8 +265,8 @@
                                           {
                                             "Actual Loops": 3,
                                             "Actual Rows": 10000,
-                                            "Actual Startup Time": 0.031,
-                                            "Actual Total Time": 1.516,
+                                            "Actual Startup Time": 0.016,
+                                            "Actual Total Time": 1.339,
                                             "Alias": "supplier",
                                             "Async Capable": false,
                                             "Node Type": "Seq Scan",
@@ -292,8 +292,8 @@
                                   {
                                     "Actual Loops": 3,
                                     "Actual Rows": 25,
-                                    "Actual Startup Time": 30.966,
-                                    "Actual Total Time": 30.967,
+                                    "Actual Startup Time": 11.408,
+                                    "Actual Total Time": 11.408,
                                     "Async Capable": false,
                                     "Hash Batches": 1,
                                     "Hash Buckets": 1024,
@@ -309,8 +309,8 @@
                                       {
                                         "Actual Loops": 3,
                                         "Actual Rows": 25,
-                                        "Actual Startup Time": 30.949,
-                                        "Actual Total Time": 30.953,
+                                        "Actual Startup Time": 11.394,
+                                        "Actual Total Time": 11.397,
                                         "Alias": "nation",
                                         "Async Capable": false,
                                         "Node Type": "Seq Scan",
@@ -336,8 +336,8 @@
                               {
                                 "Actual Loops": 42628,
                                 "Actual Rows": 8,
-                                "Actual Startup Time": 0.006,
-                                "Actual Total Time": 0.032,
+                                "Actual Startup Time": 0.003,
+                                "Actual Total Time": 0.019,
                                 "Alias": "lineitem",
                                 "Async Capable": false,
                                 "Index Cond": "((l_partkey = partsupp.ps_partkey) AND (l_suppkey = partsupp.ps_suppkey))",
@@ -377,20 +377,20 @@
                 ],
                 "Sort Method": "external merge",
                 "Sort Space Type": "Disk",
-                "Sort Space Used": 6936,
+                "Sort Space Used": 7272,
                 "Startup Cost": 91615.36,
                 "Total Cost": 91865.75,
                 "Workers": [
                   {
                     "Sort Method": "external merge",
                     "Sort Space Type": "Disk",
-                    "Sort Space Used": 7040,
+                    "Sort Space Used": 6968,
                     "Worker Number": 0
                   },
                   {
                     "Sort Method": "external merge",
                     "Sort Space Type": "Disk",
-                    "Sort Space Used": 6896,
+                    "Sort Space Used": 6632,
                     "Worker Number": 1
                   }
                 ]
@@ -412,6 +412,6 @@
     "Strategy": "Sorted",
     "Total Cost": 111511.59
   },
-  "Planning Time": 6.123,
+  "Planning Time": 2.501,
   "Triggers": []
 }

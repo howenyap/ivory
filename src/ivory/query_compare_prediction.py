@@ -16,6 +16,7 @@ from ivory.baseline_modeling import flatten_modeling_dataset, to_feature_matrix
 from ivory.config import load_config
 from ivory.plan_features import build_plan_feature_row
 from ivory.postgres import database_connection, project_postgres_config
+from ivory.query_compare_benchmark import get_included_templates, load_benchmark
 from ivory.query_compare_validation import _display_path
 from ivory.sql_features import build_sql_feature_row
 
@@ -119,9 +120,9 @@ def load_selected_estimator(*, manifest_path: Path) -> tuple[str, list[str], Any
 
 def load_formulations(*, benchmark_path: Path) -> list[Formulation]:
     """Return the baseline and accepted alternatives from the benchmark."""
-    benchmark = json.loads(benchmark_path.read_text())
+    benchmark = load_benchmark(benchmark_path=benchmark_path)
     formulations: list[Formulation] = []
-    for template in benchmark["templates"]:
+    for template in get_included_templates(benchmark):
         template_id = str(template["template_id"])
         parameter_set_id = str(template["parameter_set_id"])
         scale_factor = float(template["scale_factor"])
@@ -171,9 +172,7 @@ def fetch_explain_plan(
     config = load_config()
     settings = project_postgres_config(config)
     explain_clause = (
-        "EXPLAIN (ANALYZE, FORMAT JSON)"
-        if analyze
-        else "EXPLAIN (FORMAT JSON)"
+        "EXPLAIN (ANALYZE, FORMAT JSON)" if analyze else "EXPLAIN (FORMAT JSON)"
     )
     with database_connection(settings, database) as conn:
         row = conn.execute(f"{explain_clause} {sql_text}").fetchone()
@@ -266,9 +265,7 @@ def rank_within_template(
     for row in rows:
         by_template.setdefault(str(row["template_id"]), []).append(row)
     for template_rows in by_template.values():
-        ordered = sorted(
-            template_rows, key=lambda row: float(row[value_key])
-        )
+        ordered = sorted(template_rows, key=lambda row: float(row[value_key]))
         previous_value: float | None = None
         current_rank = 0
         for row in ordered:
@@ -317,8 +314,7 @@ def add_baseline_deltas(rows: list[dict[str, Any]]) -> None:
         baseline_execution_time_ms = baseline.get("execution_time_ms")
         row["execution_time_ms_delta_vs_baseline"] = (
             float(execution_time_ms) - float(baseline_execution_time_ms)
-            if execution_time_ms is not None
-            and baseline_execution_time_ms is not None
+            if execution_time_ms is not None and baseline_execution_time_ms is not None
             else None
         )
 
@@ -331,11 +327,7 @@ def _winner_rows_for_metric(
         return []
     best_value = min(float(row[metric_key]) for row in available_rows)
     return sorted(
-        [
-            row
-            for row in available_rows
-            if float(row[metric_key]) == best_value
-        ],
+        [row for row in available_rows if float(row[metric_key]) == best_value],
         key=lambda row: str(row["formulation_id"]),
     )
 
@@ -380,9 +372,7 @@ def build_summary(
     """Build a compact JSON summary derived from the prediction rows."""
     templates: list[dict[str, Any]] = []
     for template_id in sorted({str(row["template_id"]) for row in rows}):
-        template_rows = [
-            row for row in rows if str(row["template_id"]) == template_id
-        ]
+        template_rows = [row for row in rows if str(row["template_id"]) == template_id]
         baseline = next(
             row for row in template_rows if row["formulation_kind"] == "baseline"
         )
@@ -395,15 +385,9 @@ def build_summary(
         best_runtime_rows = _winner_rows_for_metric(
             template_rows, metric_key="execution_time_ms"
         )
-        best_predicted_ids = [
-            str(row["formulation_id"]) for row in best_predicted_rows
-        ]
-        best_planner_ids = [
-            str(row["formulation_id"]) for row in best_planner_rows
-        ]
-        best_runtime_ids = [
-            str(row["formulation_id"]) for row in best_runtime_rows
-        ]
+        best_predicted_ids = [str(row["formulation_id"]) for row in best_predicted_rows]
+        best_planner_ids = [str(row["formulation_id"]) for row in best_planner_rows]
+        best_runtime_ids = [str(row["formulation_id"]) for row in best_runtime_rows]
         best_predicted_id = (
             best_predicted_ids[0] if len(best_predicted_ids) == 1 else None
         )
@@ -587,9 +571,7 @@ def predict_query_compare_costs(
         rank_key="execution_time_ms_rank",
     )
     add_baseline_deltas(rows)
-    rows.sort(
-        key=lambda row: (str(row["template_id"]), str(row["formulation_id"]))
-    )
+    rows.sort(key=lambda row: (str(row["template_id"]), str(row["formulation_id"])))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     pl.DataFrame(rows).write_parquet(output_path)

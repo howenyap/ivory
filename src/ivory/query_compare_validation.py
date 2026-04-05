@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from ivory.config import load_config
 from ivory.postgres import database_connection, project_postgres_config
+from ivory.query_compare_benchmark import get_included_templates, load_benchmark
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 BENCHMARK_PATH = ROOT_DIR / "query_compare" / "benchmark.json"
@@ -84,9 +86,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _normalize_row(
-    row: Any, column_names: tuple[str, ...]
-) -> tuple[Any, ...]:
+def _normalize_row(row: Any, column_names: tuple[str, ...]) -> tuple[Any, ...]:
     if isinstance(row, Mapping):
         return tuple(row[column_name] for column_name in column_names)
     return tuple(row)
@@ -102,9 +102,7 @@ def execute_query(*, database: str, sql_text: str) -> QueryExecutionResult:
         column_names = tuple(
             column.name for column in (cursor.description or ()) if column.name
         )
-        rows = tuple(
-            _normalize_row(row, column_names) for row in cursor.fetchall()
-        )
+        rows = tuple(_normalize_row(row, column_names) for row in cursor.fetchall())
     elapsed_ms = (time.perf_counter() - start) * 1000
     return QueryExecutionResult(
         column_names=column_names,
@@ -181,10 +179,10 @@ def validate_query_compare_benchmark(
     repeat_order_checks: int,
 ) -> dict[str, Any]:
     """Run all benchmark comparisons and write a machine-readable summary."""
-    benchmark = json.loads(benchmark_path.read_text())
+    benchmark = load_benchmark(benchmark_path=benchmark_path)
     comparisons: list[dict[str, Any]] = []
 
-    for template in benchmark["templates"]:
+    for template in get_included_templates(benchmark):
         template_id = template["template_id"]
         baseline_result = execute_query(
             database=database,
@@ -234,6 +232,8 @@ def validate_query_compare_benchmark(
         "artifact_name": "query_compare_validation",
         "benchmark_path": _display_path(benchmark_path),
         "database": database,
+        "screened_template_count": len(benchmark["templates"]),
+        "included_template_count": len(get_included_templates(benchmark)),
         "comparison_count": len(comparisons),
         "all_exact_matches": all(item["exact_match"] for item in comparisons),
         "comparisons": comparisons,

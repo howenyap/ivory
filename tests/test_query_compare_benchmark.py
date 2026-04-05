@@ -12,7 +12,6 @@ from ivory.query_compare_validation import (
     compare_results,
 )
 
-
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BENCHMARK_PATH = ROOT_DIR / "query_compare" / "benchmark.json"
 SQL_DIR = ROOT_DIR / "query_compare" / "sql"
@@ -42,50 +41,59 @@ def test_query_compare_benchmark_has_expected_shape() -> None:
     ]
 
     templates = benchmark["templates"]
-    assert len(templates) == 5
-    assert [template["template_id"] for template in templates] == [
-        "q9",
-        "q11",
-        "q13",
-        "q15",
-        "q17",
-    ]
-    assert [template["query_instance_id"] for template in templates] == [
-        "q9-q9-p0000-sf-1.0",
-        "q11-q11-p0000-sf-1.0",
-        "q13-q13-p0000-sf-1.0",
-        "q15-q15-p0000-sf-1.0",
-        "q17-q17-p0000-sf-1.0",
-    ]
+    assert {template["template_id"] for template in templates} == {
+        f"q{index}" for index in range(1, 23)
+    }
+    assert {
+        template["template_id"]
+        for template in templates
+        if template["template_status"] == "included"
+    } == {"q2", "q5", "q7", "q8", "q9", "q11", "q13", "q15", "q16", "q17", "q19"}
 
     for template in templates:
-        assert template["baseline_suitability"]["status"] in {
-            "accepted",
-            "accepted_with_ordering_caveat",
+        assert template["template_status"] in {
+            "included",
+            "excluded_after_screening",
+            "attempted_but_dropped",
         }
         assert template["screening_rationale"].strip()
-        assert template["baseline_sql"].strip()
-        assert template["baseline_sql_path"].startswith("query_compare/sql/")
+        assert template["rewrite_budget_target"]
+        assert isinstance(template["accepted_rewrite_families"], list)
+        assert isinstance(template["rejected_formulations"], list)
+        assert template["docker_equivalence_validation"]["status"].strip()
 
         alternatives = template["accepted_formulations"]
-        assert len(alternatives) == 3
-        assert [alt["formulation_id"] for alt in alternatives] == [
-            f"{template['template_id']}_alt_1",
-            f"{template['template_id']}_alt_2",
-            f"{template['template_id']}_alt_3",
-        ]
-        for alternative in alternatives:
-            assert alternative["logical_review_status"] == "accepted"
-            assert alternative["rewrite_family"].strip()
-            assert alternative["sql"].strip()
-            assert alternative["sql_path"].startswith("query_compare/sql/")
-            assert alternative["equivalence_rationale"].strip()
-            assert alternative["structural_change"].strip()
-            assert alternative["selection_reason"].strip()
-            assert len(alternative["exclusion_guardrails"]) >= 1
+        if template["template_status"] == "included":
+            assert template["baseline_suitability"]["status"] in {
+                "accepted",
+                "accepted_with_ordering_caveat",
+            }
+            assert template["baseline_sql"].strip()
+            assert template["baseline_sql_path"].startswith("query_compare/sql/")
+            assert 1 <= len(alternatives) <= 3
+            assert [alt["formulation_id"] for alt in alternatives] == [
+                f"{template['template_id']}_alt_{index}"
+                for index in range(1, len(alternatives) + 1)
+            ]
+            assert template["accepted_rewrite_families"] == [
+                alt["rewrite_family"] for alt in alternatives
+            ]
+            for alternative in alternatives:
+                assert alternative["logical_review_status"] == "accepted"
+                assert alternative["rewrite_family"].strip()
+                assert alternative["sql"].strip()
+                assert alternative["sql_path"].startswith("query_compare/sql/")
+                assert alternative["equivalence_rationale"].strip()
+                assert alternative["structural_change"].strip()
+                assert alternative["selection_reason"].strip()
+                assert len(alternative["exclusion_guardrails"]) >= 1
+        else:
+            assert alternatives == []
+            assert template["accepted_rewrite_families"] == []
+            assert template["exclusion_reason"].strip()
 
         rejected_formulations = template["rejected_formulations"]
-        assert len(rejected_formulations) >= 3
+        assert len(rejected_formulations) >= 1
         for rejected in rejected_formulations:
             assert rejected["rewrite_family"].strip()
             assert rejected["rejection_reason"].strip()
@@ -99,9 +107,13 @@ def test_sql_files_exist_for_all_bases_and_formulations() -> None:
     benchmark = json.loads(BENCHMARK_PATH.read_text())
 
     expected_files = {
-        Path(template["baseline_sql_path"]).name for template in benchmark["templates"]
+        Path(template["baseline_sql_path"]).name
+        for template in benchmark["templates"]
+        if template["template_status"] == "included"
     }
     for template in benchmark["templates"]:
+        if template["template_status"] != "included":
+            continue
         for alternative in template["accepted_formulations"]:
             expected_files.add(Path(alternative["sql_path"]).name)
 
@@ -120,13 +132,15 @@ def test_sql_files_match_vetted_benchmark_queries_exactly() -> None:
 
     expected_sql_by_filename: dict[str, str] = {}
     for template in benchmark["templates"]:
-        expected_sql_by_filename[
-            Path(template["baseline_sql_path"]).name
-        ] = template["baseline_sql"]
+        if template["template_status"] != "included":
+            continue
+        expected_sql_by_filename[Path(template["baseline_sql_path"]).name] = template[
+            "baseline_sql"
+        ]
         for alternative in template["accepted_formulations"]:
-            expected_sql_by_filename[
-                Path(alternative["sql_path"]).name
-            ] = alternative["sql"]
+            expected_sql_by_filename[Path(alternative["sql_path"]).name] = alternative[
+                "sql"
+            ]
 
     for filename, expected_sql in expected_sql_by_filename.items():
         actual_sql = (SQL_DIR / filename).read_text()

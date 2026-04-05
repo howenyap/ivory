@@ -3,27 +3,27 @@
   "benchmark_path": "query_compare/benchmark.json",
   "database": "tpch_sf_1",
   "explain_artifact_dir": "query_compare/results/explains",
-  "model_family": "random_forest",
+  "model_family": "hist_gradient_boosting",
   "prediction_artifact_path": "query_compare/results/predictions/query_compare_predictions_sf_1.parquet",
   "runtime_collection_enabled": true,
   "target_name": "planner_total_cost",
   "templates": [
     {
       "all_signals_agree": false,
-      "baseline_execution_time_ms": 72.896,
+      "baseline_execution_time_ms": 84.085,
       "baseline_formulation_id": "baseline",
-      "baseline_predicted_cost": 10202.840000000037,
+      "baseline_predicted_cost": 10148.413295167737,
       "best_execution_time_formulation_id": "q11_alt_3",
       "best_execution_time_formulation_ids": [
         "q11_alt_3"
       ],
-      "best_execution_time_ms": 35.013,
+      "best_execution_time_ms": 39.622,
       "best_planner_formulation_id": "q11_alt_3",
       "best_planner_formulation_ids": [
         "q11_alt_3"
       ],
       "best_planner_total_cost": 6553.41,
-      "best_predicted_cost": 10202.840000000037,
+      "best_predicted_cost": 10148.413295167737,
       "best_predicted_formulation_id": "baseline",
       "best_predicted_formulation_ids": [
         "baseline"
@@ -38,98 +38,273 @@
     },
     {
       "all_signals_agree": false,
-      "baseline_execution_time_ms": 381.344,
+      "baseline_execution_time_ms": 472.566,
       "baseline_formulation_id": "baseline",
-      "baseline_predicted_cost": 137159.2433212246,
+      "baseline_predicted_cost": 137160.8634848325,
       "best_execution_time_formulation_id": "q13_alt_1",
       "best_execution_time_formulation_ids": [
         "q13_alt_1"
       ],
-      "best_execution_time_ms": 374.516,
+      "best_execution_time_ms": 442.855,
       "best_planner_formulation_id": "q13_alt_2",
       "best_planner_formulation_ids": [
         "q13_alt_2"
       ],
       "best_planner_total_cost": 59712.56,
-      "best_predicted_cost": 129539.38344503734,
+      "best_predicted_cost": 113006.42298430733,
       "best_predicted_formulation_id": "q13_alt_3",
       "best_predicted_formulation_ids": [
         "q13_alt_3"
       ],
       "model_vs_runtime_agree": false,
-      "model_vs_runtime_dense_rank_correlation": -0.9438798074485389,
+      "model_vs_runtime_dense_rank_correlation": -0.2,
       "planner_vs_model_agree": false,
-      "planner_vs_model_dense_rank_correlation": -0.42640143271122083,
+      "planner_vs_model_dense_rank_correlation": -0.9486832980505138,
       "planner_vs_runtime_agree": false,
       "planner_vs_runtime_dense_rank_correlation": 0.31622776601683794,
       "template_id": "q13"
     },
     {
       "all_signals_agree": false,
-      "baseline_execution_time_ms": 168.755,
+      "baseline_execution_time_ms": 231.132,
       "baseline_formulation_id": "baseline",
-      "baseline_predicted_cost": 148955.65060770608,
+      "baseline_predicted_cost": 148956.95796753257,
       "best_execution_time_formulation_id": "q15_alt_3",
       "best_execution_time_formulation_ids": [
         "q15_alt_3"
       ],
-      "best_execution_time_ms": 156.081,
+      "best_execution_time_ms": 188.518,
       "best_planner_formulation_id": "q15_alt_1",
       "best_planner_formulation_ids": [
         "q15_alt_1"
       ],
       "best_planner_total_cost": 148506.45,
-      "best_predicted_cost": 103299.11675484823,
-      "best_predicted_formulation_id": "q15_alt_2",
+      "best_predicted_cost": 122123.76114128808,
+      "best_predicted_formulation_id": "q15_alt_3",
       "best_predicted_formulation_ids": [
-        "q15_alt_2"
+        "q15_alt_3"
       ],
-      "model_vs_runtime_agree": false,
-      "model_vs_runtime_dense_rank_correlation": -1.0,
+      "model_vs_runtime_agree": true,
+      "model_vs_runtime_dense_rank_correlation": 0.9486832980505138,
       "planner_vs_model_agree": false,
-      "planner_vs_model_dense_rank_correlation": -0.4,
+      "planner_vs_model_dense_rank_correlation": 0.31622776601683794,
       "planner_vs_runtime_agree": false,
       "planner_vs_runtime_dense_rank_correlation": 0.4,
       "template_id": "q15"
     },
     {
-      "all_signals_agree": true,
-      "baseline_execution_time_ms": 577.434,
+      "all_signals_agree": false,
+      "baseline_execution_time_ms": 151.239,
       "baseline_formulation_id": "baseline",
-      "baseline_predicted_cost": 196047.25318146512,
+      "baseline_predicted_cost": 36048.72732732975,
+      "best_execution_time_formulation_id": "q16_alt_2",
+      "best_execution_time_formulation_ids": [
+        "q16_alt_2"
+      ],
+      "best_execution_time_ms": 121.607,
+      "best_planner_formulation_id": "baseline",
+      "best_planner_formulation_ids": [
+        "baseline"
+      ],
+      "best_planner_total_cost": 35937.03,
+      "best_predicted_cost": 36048.72732732975,
+      "best_predicted_formulation_id": "baseline",
+      "best_predicted_formulation_ids": [
+        "baseline"
+      ],
+      "model_vs_runtime_agree": false,
+      "model_vs_runtime_dense_rank_correlation": -0.8660254037844387,
+      "planner_vs_model_agree": true,
+      "planner_vs_model_dense_rank_correlation": 1.0,
+      "planner_vs_runtime_agree": false,
+      "planner_vs_runtime_dense_rank_correlation": -0.8660254037844387,
+      "template_id": "q16"
+    },
+    {
+      "all_signals_agree": true,
+      "baseline_execution_time_ms": 626.71,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 196045.77799287584,
       "best_execution_time_formulation_id": "q17_alt_2",
       "best_execution_time_formulation_ids": [
         "q17_alt_2"
       ],
-      "best_execution_time_ms": 8.831,
+      "best_execution_time_ms": 10.246,
       "best_planner_formulation_id": "q17_alt_2",
       "best_planner_formulation_ids": [
         "q17_alt_2"
       ],
       "best_planner_total_cost": 18181.64,
-      "best_predicted_cost": 115326.47690340898,
+      "best_predicted_cost": 111219.87020583522,
       "best_predicted_formulation_id": "q17_alt_2",
       "best_predicted_formulation_ids": [
         "q17_alt_2"
       ],
       "model_vs_runtime_agree": true,
-      "model_vs_runtime_dense_rank_correlation": 0.8,
+      "model_vs_runtime_dense_rank_correlation": 0.2,
       "planner_vs_model_agree": true,
-      "planner_vs_model_dense_rank_correlation": 0.8,
+      "planner_vs_model_dense_rank_correlation": 0.2,
       "planner_vs_runtime_agree": true,
       "planner_vs_runtime_dense_rank_correlation": 1.0,
       "template_id": "q17"
     },
     {
       "all_signals_agree": null,
-      "baseline_execution_time_ms": 988.281,
+      "baseline_execution_time_ms": 29.627,
       "baseline_formulation_id": "baseline",
-      "baseline_predicted_cost": 132742.29216816227,
-      "best_execution_time_formulation_id": "q9_alt_2",
+      "baseline_predicted_cost": 33082.40340464765,
+      "best_execution_time_formulation_id": "q19_alt_3",
       "best_execution_time_formulation_ids": [
-        "q9_alt_2"
+        "q19_alt_3"
       ],
-      "best_execution_time_ms": 588.956,
+      "best_execution_time_ms": 22.007,
+      "best_planner_formulation_id": null,
+      "best_planner_formulation_ids": [
+        "baseline",
+        "q19_alt_1"
+      ],
+      "best_planner_total_cost": 32815.13,
+      "best_predicted_cost": 33082.40340464765,
+      "best_predicted_formulation_id": "baseline",
+      "best_predicted_formulation_ids": [
+        "baseline"
+      ],
+      "model_vs_runtime_agree": false,
+      "model_vs_runtime_dense_rank_correlation": -0.8,
+      "planner_vs_model_agree": null,
+      "planner_vs_model_dense_rank_correlation": 0.13483997249264842,
+      "planner_vs_runtime_agree": null,
+      "planner_vs_runtime_dense_rank_correlation": -0.674199862463242,
+      "template_id": "q19"
+    },
+    {
+      "all_signals_agree": true,
+      "baseline_execution_time_ms": 214.153,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 56119.36335147892,
+      "best_execution_time_formulation_id": "baseline",
+      "best_execution_time_formulation_ids": [
+        "baseline"
+      ],
+      "best_execution_time_ms": 214.153,
+      "best_planner_formulation_id": "baseline",
+      "best_planner_formulation_ids": [
+        "baseline"
+      ],
+      "best_planner_total_cost": 59501.02,
+      "best_predicted_cost": 56119.36335147892,
+      "best_predicted_formulation_id": "baseline",
+      "best_predicted_formulation_ids": [
+        "baseline"
+      ],
+      "model_vs_runtime_agree": true,
+      "model_vs_runtime_dense_rank_correlation": 1.0,
+      "planner_vs_model_agree": true,
+      "planner_vs_model_dense_rank_correlation": 1.0,
+      "planner_vs_runtime_agree": true,
+      "planner_vs_runtime_dense_rank_correlation": 1.0,
+      "template_id": "q2"
+    },
+    {
+      "all_signals_agree": null,
+      "baseline_execution_time_ms": 332.73,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 85915.66023991196,
+      "best_execution_time_formulation_id": "baseline",
+      "best_execution_time_formulation_ids": [
+        "baseline"
+      ],
+      "best_execution_time_ms": 332.73,
+      "best_planner_formulation_id": null,
+      "best_planner_formulation_ids": [
+        "baseline",
+        "q5_alt_2"
+      ],
+      "best_planner_total_cost": 85138.17,
+      "best_predicted_cost": 85915.66023991196,
+      "best_predicted_formulation_id": null,
+      "best_predicted_formulation_ids": [
+        "baseline",
+        "q5_alt_1",
+        "q5_alt_2",
+        "q5_alt_3"
+      ],
+      "model_vs_runtime_agree": null,
+      "model_vs_runtime_dense_rank_correlation": null,
+      "planner_vs_model_agree": null,
+      "planner_vs_model_dense_rank_correlation": null,
+      "planner_vs_runtime_agree": null,
+      "planner_vs_runtime_dense_rank_correlation": 0.0,
+      "template_id": "q5"
+    },
+    {
+      "all_signals_agree": null,
+      "baseline_execution_time_ms": 393.065,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 73524.97435442754,
+      "best_execution_time_formulation_id": "q7_alt_3",
+      "best_execution_time_formulation_ids": [
+        "q7_alt_3"
+      ],
+      "best_execution_time_ms": 366.974,
+      "best_planner_formulation_id": "q7_alt_3",
+      "best_planner_formulation_ids": [
+        "q7_alt_3"
+      ],
+      "best_planner_total_cost": 39231.81,
+      "best_predicted_cost": 73524.97435442754,
+      "best_predicted_formulation_id": null,
+      "best_predicted_formulation_ids": [
+        "baseline",
+        "q7_alt_2"
+      ],
+      "model_vs_runtime_agree": null,
+      "model_vs_runtime_dense_rank_correlation": 0.40451991747794525,
+      "planner_vs_model_agree": null,
+      "planner_vs_model_dense_rank_correlation": 0.40451991747794525,
+      "planner_vs_runtime_agree": true,
+      "planner_vs_runtime_dense_rank_correlation": 1.0,
+      "template_id": "q7"
+    },
+    {
+      "all_signals_agree": null,
+      "baseline_execution_time_ms": 141.876,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 77587.24396035976,
+      "best_execution_time_formulation_id": "q8_alt_2",
+      "best_execution_time_formulation_ids": [
+        "q8_alt_2"
+      ],
+      "best_execution_time_ms": 141.543,
+      "best_planner_formulation_id": "q8_alt_2",
+      "best_planner_formulation_ids": [
+        "q8_alt_2"
+      ],
+      "best_planner_total_cost": 76241.54,
+      "best_predicted_cost": 77587.24396035976,
+      "best_predicted_formulation_id": null,
+      "best_predicted_formulation_ids": [
+        "baseline",
+        "q8_alt_1"
+      ],
+      "model_vs_runtime_agree": null,
+      "model_vs_runtime_dense_rank_correlation": 0.40451991747794525,
+      "planner_vs_model_agree": null,
+      "planner_vs_model_dense_rank_correlation": 0.42640143271122083,
+      "planner_vs_runtime_agree": true,
+      "planner_vs_runtime_dense_rank_correlation": 0.9486832980505138,
+      "template_id": "q8"
+    },
+    {
+      "all_signals_agree": null,
+      "baseline_execution_time_ms": 700.836,
+      "baseline_formulation_id": "baseline",
+      "baseline_predicted_cost": 132828.66671290662,
+      "best_execution_time_formulation_id": "q9_alt_3",
+      "best_execution_time_formulation_ids": [
+        "q9_alt_3"
+      ],
+      "best_execution_time_ms": 662.721,
       "best_planner_formulation_id": null,
       "best_planner_formulation_ids": [
         "baseline",
@@ -137,7 +312,7 @@
         "q9_alt_3"
       ],
       "best_planner_total_cost": 111511.59,
-      "best_predicted_cost": 132742.29216816227,
+      "best_predicted_cost": 132828.66671290662,
       "best_predicted_formulation_id": null,
       "best_predicted_formulation_ids": [
         "baseline",
@@ -150,7 +325,7 @@
       "planner_vs_model_agree": null,
       "planner_vs_model_dense_rank_correlation": null,
       "planner_vs_runtime_agree": null,
-      "planner_vs_runtime_dense_rank_correlation": -0.7745966692414834,
+      "planner_vs_runtime_dense_rank_correlation": 0.2581988897471611,
       "template_id": "q9"
     }
   ]

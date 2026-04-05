@@ -1,10 +1,10 @@
 {
-  "Execution Time": 38.642,
+  "Execution Time": 40.972,
   "Plan": {
     "Actual Loops": 1,
     "Actual Rows": 869,
-    "Actual Startup Time": 38.251,
-    "Actual Total Time": 38.273,
+    "Actual Startup Time": 40.65,
+    "Actual Total Time": 40.671,
     "Async Capable": false,
     "Node Type": "Sort",
     "Parallel Aware": false,
@@ -14,8 +14,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 30639,
-        "Actual Startup Time": 24.885,
-        "Actual Total Time": 31.91,
+        "Actual Startup Time": 25.454,
+        "Actual Total Time": 34.128,
         "Async Capable": false,
         "Disk Usage": 680,
         "Group Key": [
@@ -34,8 +34,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 32560,
-            "Actual Startup Time": 0.04,
-            "Actual Total Time": 16.894,
+            "Actual Startup Time": 0.047,
+            "Actual Total Time": 17.239,
             "Async Capable": false,
             "Inner Unique": false,
             "Join Type": "Inner",
@@ -48,8 +48,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 407,
-                "Actual Startup Time": 0.035,
-                "Actual Total Time": 0.217,
+                "Actual Startup Time": 0.043,
+                "Actual Total Time": 0.225,
                 "Async Capable": false,
                 "Inner Unique": false,
                 "Join Type": "Inner",
@@ -62,8 +62,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 1,
-                    "Actual Startup Time": 0.004,
-                    "Actual Total Time": 0.007,
+                    "Actual Startup Time": 0.014,
+                    "Actual Total Time": 0.016,
                     "Alias": "n",
                     "Async Capable": false,
                     "Filter": "(n_name = 'CHINA'::bpchar)",
@@ -80,8 +80,8 @@
                   {
                     "Actual Loops": 1,
                     "Actual Rows": 407,
-                    "Actual Startup Time": 0.03,
-                    "Actual Total Time": 0.179,
+                    "Actual Startup Time": 0.029,
+                    "Actual Total Time": 0.177,
                     "Alias": "s",
                     "Async Capable": false,
                     "Exact Heap Blocks": 184,
@@ -152,8 +152,8 @@
       {
         "Actual Loops": 1,
         "Actual Rows": 869,
-        "Actual Startup Time": 35.842,
-        "Actual Total Time": 38.134,
+        "Actual Startup Time": 38.385,
+        "Actual Total Time": 40.539,
         "Async Capable": false,
         "Inner Unique": false,
         "Join Filter": "(pv.value > ((sum(part_values.value) * 0.0001000000)))",
@@ -167,8 +167,8 @@
           {
             "Actual Loops": 1,
             "Actual Rows": 1,
-            "Actual Startup Time": 35.839,
-            "Actual Total Time": 35.839,
+            "Actual Startup Time": 38.381,
+            "Actual Total Time": 38.382,
             "Async Capable": false,
             "Node Type": "Aggregate",
             "Parallel Aware": false,
@@ -180,8 +180,8 @@
               {
                 "Actual Loops": 1,
                 "Actual Rows": 30639,
-                "Actual Startup Time": 24.887,
-                "Actual Total Time": 34.592,
+                "Actual Startup Time": 25.456,
+                "Actual Total Time": 37.018,
                 "Alias": "part_values",
                 "Async Capable": false,
                 "CTE Name": "part_values",
@@ -202,7 +202,7 @@
             "Actual Loops": 1,
             "Actual Rows": 30639,
             "Actual Startup Time": 0.0,
-            "Actual Total Time": 0.936,
+            "Actual Total Time": 0.887,
             "Alias": "pv",
             "Async Capable": false,
             "CTE Name": "part_values",
@@ -229,6 +229,6 @@
     "Startup Cost": 7406.76,
     "Total Cost": 7433.43
   },
-  "Planning Time": 0.419,
+  "Planning Time": 0.416,
   "Triggers": []
 }
