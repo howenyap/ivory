@@ -10,7 +10,6 @@ from typing import Any
 import polars as pl
 
 from ivory.baseline_modeling import (
-    FEATURES_PATH,
     TARGET_NAMES,
     TRAINING_MANIFEST_PATH,
     build_model_family_estimators,
@@ -27,7 +26,7 @@ from ivory.baseline_modeling import (
     validate_metrics_artifact,
 )
 from ivory.collection import log_progress
-from ivory.config import load_config, load_schema
+from ivory.config import load_config
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 EVALUATION_DIR = ROOT_DIR / "artifacts" / "evaluation"
@@ -62,9 +61,8 @@ def run_grouped_evaluation(*, seed: int | None = None) -> dict[str, Any]:
     training_manifest = _load_training_manifest()
     selected_families = training_manifest.get("selected_model_family_per_target", {})
 
-    # Accumulate per-fold metrics and error rows
+    # Accumulate per-fold metrics
     fold_metrics: dict[str, list[dict[str, Any]]] = {t: [] for t in TARGET_NAMES}
-    all_error_rows: list[dict[str, Any]] = []
 
     for fold_idx, (train_templates, test_templates) in enumerate(folds):
         train_df = modeling_df.filter(pl.col("template_id").is_in(set(train_templates)))
@@ -97,17 +95,6 @@ def run_grouped_evaluation(*, seed: int | None = None) -> dict[str, Any]:
 
             metrics = compute_regression_metrics(y_true=y_test_raw, y_pred=y_pred)
             fold_metrics[target_name].append(metrics)
-
-            if fold_idx == 0:
-                all_error_rows.extend(
-                    _build_error_rows(
-                        test_df=test_df,
-                        target_name=target_name,
-                        model_family=model_family,
-                        y_true=y_test_raw,
-                        y_pred=y_pred,
-                    )
-                )
 
         log_progress(
             f"grouped cv fold {fold_idx + 1}/{GROUPED_CV_FOLDS} complete | "

@@ -427,14 +427,12 @@ def train_target_models(
     y_train = transform_target(to_target_vector(train_df, target_name), target_name)
     x_validation = to_feature_matrix(validation_df, feature_columns)
     y_validation_raw = to_target_vector(validation_df, target_name)
-    y_validation = transform_target(y_validation_raw, target_name)
     x_train_validation = to_feature_matrix(train_validation_df, feature_columns)
     y_train_validation = transform_target(
         to_target_vector(train_validation_df, target_name), target_name
     )
     x_test = to_feature_matrix(test_df, feature_columns)
     y_test_raw = to_target_vector(test_df, target_name)
-    y_test = transform_target(y_test_raw, target_name)
 
     family_results: dict[str, dict[str, Any]] = {}
     final_estimators: dict[str, Any] = {}
@@ -554,7 +552,7 @@ def transform_target(y: Any, target_name: str) -> Any:
 def inverse_transform_target(y: Any, target_name: str) -> Any:
     """Invert the target transform to return predictions to original space."""
     if target_name in LOG_TRANSFORMED_TARGETS:
-        return np.expm1(y)
+        return np.maximum(np.expm1(y), 0.0)
     return y
 
 
