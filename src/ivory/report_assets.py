@@ -217,7 +217,7 @@ def _fig_ablation_execution_time(ablations: dict[str, Any]) -> None:
         bars = ax.barh(condition_labels, values, color="#4c72b0")
         for bar, val in zip(bars, values):
             ax.text(
-                val * 1.01, bar.get_y() + bar.get_height() / 2,
+                val * 1.05, bar.get_y() + bar.get_height() / 2,
                 f"{val:.3f}", va="center", fontsize=8,
             )
 
@@ -232,7 +232,8 @@ def _fig_ablation_execution_time(ablations: dict[str, Any]) -> None:
         metric_label = "RMSE" if metric == "rmse" else "Q-Error (p50)"
         ax.set_xlabel(metric_label)
         ax.set_title(metric_label)
-        ax.set_xlim(left=0)
+        ax.set_xscale("log")
+        ax.set_xlim(left=max(min(v for v in values if v > 0) * 0.5, 1e-3))
 
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "fig_ablation_execution_time.png", dpi=150)
@@ -255,21 +256,47 @@ def _fig_q_error_by_template(error_df: pl.DataFrame) -> None:
         for tid in template_order
     }
 
+    worst_template = template_order[0]
+    colors = ["#c44e52" if tid == worst_template else "#4c72b0" for tid in template_order]
+
     fig, ax = plt.subplots(figsize=(13, 5))
-    ax.boxplot(
+    bp = ax.boxplot(
         [data_by_template[tid] for tid in template_order],
         labels=template_order,
         vert=True,
         patch_artist=True,
-        boxprops={"facecolor": "#4c72b0", "alpha": 0.6},
         medianprops={"color": "black", "linewidth": 1.5},
         flierprops={"marker": ".", "markersize": 3},
     )
-    ax.axhline(y=1.0, color="gray", linestyle="--", linewidth=0.8)
+    for patch, color in zip(bp["boxes"], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.6)
+
+    # annotate median value above each box
+    for i, tid in enumerate(template_order):
+        median_val = sorted(data_by_template[tid])[len(data_by_template[tid]) // 2]
+        ax.text(
+            i + 1, median_val * 1.04, f"{median_val:.2f}",
+            ha="center", va="bottom", fontsize=8, color="black",
+        )
+
+    ax.axhline(y=1.0, color="gray", linestyle="--", linewidth=0.8, label="Perfect (Q-Error = 1)")
+    ax.set_yscale("log")
+    all_vals = [v for vals in data_by_template.values() for v in vals if v > 0]
+    y_min = max(min(all_vals) * 0.9, 0.9)
+    y_max = max(all_vals) * 1.1
+    ax.set_ylim(y_min, y_max)
+    import math
+    tick_candidates = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10]
+    yticks = [t for t in tick_candidates if y_min <= t <= y_max]
+    ax.set_yticks(yticks)
+    ax.yaxis.set_major_formatter(plt.matplotlib.ticker.FuncFormatter(lambda x, _: f"{x:g}"))
+    ax.yaxis.set_minor_formatter(plt.matplotlib.ticker.NullFormatter())
     ax.set_xlabel("Query Template")
-    ax.set_ylabel("Q-Error")
+    ax.set_ylabel("Q-Error (log scale)")
     ax.set_title("Q-Error Distribution per Template — Execution Time (ms)")
-    ax.tick_params(axis="x", labelsize=8)
+    ax.tick_params(axis="x", labelsize=9)
+    ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(FIGURES_DIR / "fig_q_error_by_template.png", dpi=150)
     plt.close(fig)
